@@ -1,0 +1,39 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Struct Chooser",
+	"Description": "ChooserTable subclass that returns FInstancedStruct as a primary result, with Evaluate/Nested support.",
+	"Category": "Animation",
+	"CreatedBy": "GASP",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"Installed": false,
+	"Plugins": [
+		{
+			"Name": "Chooser",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "StructChooser",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "StructChooserUncooked",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "StructChooserEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
