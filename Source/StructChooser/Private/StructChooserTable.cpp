@@ -7,8 +7,9 @@
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
-#include "Styling/CoreStyle.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Styling/CoreStyle.h"
+#include "UObject/ObjectSaveContext.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 
@@ -34,6 +35,10 @@ void UStructChooserTable::PostLoad()
 {
 	Super::PostLoad();
 	ApplyStructChooserDefaults();
+#if WITH_EDITOR
+	// No cell widgets yet — safe to fix bad serialized rows immediately.
+	SanitizeInvalidStructResults();
+#endif
 }
 
 void UStructChooserTable::Compile(bool bForce)
@@ -52,9 +57,72 @@ void UStructChooserTable::MakeDefaultStructValueResult(FInstancedStruct& OutResu
 	}
 }
 
+void UStructChooserTable::NotifyInvalidResultReplaced() const
+{
+	FNotificationInfo Info(NSLOCTEXT(
+		"StructChooser",
+		"InvalidResultReplaced",
+		"StructChooser only supports Struct / Evaluate Struct Chooser / Nested Struct Chooser. Invalid Object result types were reset to Struct."));
+	Info.ExpireDuration = 5.0f;
+	Info.bUseSuccessFailIcons = true;
+	Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+	FSlateNotificationManager::Get().AddNotification(Info);
+}
+
+void* UStructChooserTable::ReplaceInvalidResultAt(void* ValueMemory)
+{
+	if (!ValueMemory)
+	{
+		return nullptr;
+	}
+
+	auto TryReplace = [this, ValueMemory](FInstancedStruct& ResultData, const TCHAR* Where) -> void*
+	{
+		if (!ResultData.IsValid() || ResultData.GetMemory() != ValueMemory)
+		{
+			return nullptr;
+		}
+		if (ResultData.GetPtr<FStructChooserBase>() != nullptr)
+		{
+			return nullptr;
+		}
+		if (ResultData.GetPtr<FObjectChooserBase>() == nullptr)
+		{
+			return nullptr;
+		}
+
+		const FString OldType = GetNameSafe(ResultData.GetScriptStruct());
+		MakeDefaultStructValueResult(ResultData);
+		UE_LOG(LogStructChooser, Warning,
+			TEXT("%s: Replaced invalid result type '%s' with Struct on '%s'."),
+			Where,
+			*OldType,
+			*GetPathName());
+		// InitializeAs may free the old buffer — callers must use this new pointer.
+		return ResultData.GetMutableMemory();
+	};
+
+#if WITH_EDITORONLY_DATA
+	for (int32 Index = 0; Index < ResultsStructs.Num(); ++Index)
+	{
+		if (void* NewMemory = TryReplace(ResultsStructs[Index], *FString::Printf(TEXT("Row %d"), Index)))
+		{
+			NotifyInvalidResultReplaced();
+			return NewMemory;
+		}
+	}
+#endif
+	if (void* NewMemory = TryReplace(FallbackResult, TEXT("Fallback")))
+	{
+		NotifyInvalidResultReplaced();
+		return NewMemory;
+	}
+
+	return nullptr;
+}
+
 bool UStructChooserTable::SanitizeInvalidStructResults()
 {
-	// Table editor Add Row / cell type changes use Modify + InitializeAs (no PostEditChangeProperty).
 	static bool bIsSanitizing = false;
 	if (bIsSanitizing)
 	{
@@ -100,14 +168,7 @@ bool UStructChooserTable::SanitizeInvalidStructResults()
 
 	if (bChanged)
 	{
-		FNotificationInfo Info(NSLOCTEXT(
-			"StructChooser",
-			"InvalidResultReplaced",
-			"StructChooser only supports Struct / Evaluate Struct Chooser / Nested Struct Chooser. Invalid Object result types were reset to Struct."));
-		Info.ExpireDuration = 5.0f;
-		Info.bUseSuccessFailIcons = true;
-		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
-		FSlateNotificationManager::Get().AddNotification(Info);
+		NotifyInvalidResultReplaced();
 	}
 
 	return bChanged;
@@ -123,6 +184,7 @@ void UStructChooserTable::PostEditChangeProperty(FPropertyChangedEvent& Property
 	}
 
 	ApplyStructChooserDefaults();
+	// Cell guards retype before building widgets; this catches Add Row / paste paths.
 	SanitizeInvalidStructResults();
 }
 
@@ -130,6 +192,12 @@ void UStructChooserTable::PostTransacted(const FTransactionObjectEvent& Transact
 {
 	Super::PostTransacted(TransactionEvent);
 	SanitizeInvalidStructResults();
+}
+
+void UStructChooserTable::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	SanitizeInvalidStructResults();
+	Super::PreSave(ObjectSaveContext);
 }
 
 bool UStructChooserTable::DoesChildMatchOutputType(const UStructChooserTable* Child) const

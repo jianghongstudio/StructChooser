@@ -4,7 +4,7 @@
 > **何时阅读**：改工厂、Result UI、Add Row、打开编辑器方式时。
 > **相关源码**：`Source/StructChooserEditor/`
 > **相关文档**：[10-asset-model.md](10-asset-model.md)、[60-known-debt.md](60-known-debt.md)
-> **最后更新**：2026-07-26（UE5.7 兼容：Style 查注册表 / Initializer Hidden）
+> **最后更新**：2026-07-27（移植主干 Crash 守卫：ReplaceInvalidResultAt）
 
 ## 打开编辑器
 
@@ -43,7 +43,8 @@ UAssetDefinitionRegistry → UChooserTable 的 AssetDefinition → OpenAssets
 |----|------|
 | Add Row / 单元格类型下拉 | 仍可能混入引擎 Object 类型（无扩展点，见 D1） |
 | 行 Details Result 下拉 | `FStructChooserRowDetails` 将 `BaseStruct` 改为 `StructChooserBase`，只显示 Struct 系类型 |
-| 误选 Object 行 | `SanitizeInvalidStructResults`（`PostEditChangeProperty` + `PostTransacted`）重置为 `FStructValueChooser` 并通知 |
+| 误选 Object 行 | 单元格控件创建时立刻 `ReplaceInvalidResultAt` 并画出 Struct 控件；`PostTransacted` / `PreSave` / `PostLoad` 同步兜底 |
+| 点 Asset 等崩溃 | 已防：`RegisterObjectResultCrashGuards` 覆盖 Object 结果控件；守卫里先改类型再建 Struct UI |
 
 约定：Add Row 请只选 StructChooser 分类；误选会被纠正。`IsDataValid` 仍为保存校验防线。
 
@@ -60,8 +61,9 @@ UAssetDefinitionRegistry → UChooserTable 的 AssetDefinition → OpenAssets
 
 1. `LoadModuleChecked(ChooserEditor)`（确保引擎先注册 `ChooserRowDetails` layout）
 2. `RegisterStructChooserWidgets()`
-3. `RegisterCustomClassLayout(StructChooserTable)` → `FStructChooserDetails`
-4. `RegisterCustomClassLayout("ChooserRowDetails")` → `FStructChooserRowDetails`（覆盖引擎同名 layout）
+3. `RegisterObjectResultCrashGuards()`（覆盖 Asset/Class/Evaluate/Nested/Proxy 等 Object 结果控件）
+4. `RegisterCustomClassLayout(StructChooserTable)` → `FStructChooserDetails`
+5. `RegisterCustomClassLayout("ChooserRowDetails")` → `FStructChooserRowDetails`（覆盖引擎同名 layout）
 
 `UChooserRowDetails` 未从 ChooserEditor 导出：用反射读写 `Chooser` / `Properties`，**不改**引擎源码。
 

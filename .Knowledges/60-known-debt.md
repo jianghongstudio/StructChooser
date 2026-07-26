@@ -4,7 +4,7 @@
 > **何时阅读**：规划改造、排查诡异行为、评估「能不能动这块」时。
 > **相关源码**：全插件
 > **相关文档**：[90-refactor-log.md](90-refactor-log.md)、[01-architecture.md](01-architecture.md)
-> **最后更新**：2026-07-26（UE5.7 适配；D5）
+> **最后更新**：2026-07-27（D1：单元格崩溃守卫）
 
 ## 基线快照
 
@@ -27,8 +27,8 @@
 - **问题**：不改 `ChooserEditor` 时无法过滤 Add Row / 单元格类型列表。
 - **缓解**：
   - 行 Details Result：`FStructChooserRowDetails` 将 `BaseStruct` → `StructChooserBase`
-  - 误选：`SanitizeInvalidStructResults`（PostEdit / PostTransacted）重置为 Struct 并通知；`IsDataValid` 仍校验
-- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选会被纠正）。
+  - 误选：单元格守卫立刻改回 Struct 并画 Struct UI；`PostTransacted` / `PreSave` / `PostLoad` 同步兜底；`IsDataValid` 仍校验
+- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选不崩，会被纠正）。
 - **建议方向（完整清菜单）**：自建 StructChooser 表编辑器。
 - **约束**：不改引擎 Chooser 源码。
 

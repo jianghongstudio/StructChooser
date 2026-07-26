@@ -4,14 +4,14 @@
 > **何时阅读**：了解「为什么现在是这样」；每次实质性改造结束后必须追加。
 > **相关源码**：随条目变化
 > **相关文档**：[60-known-debt.md](60-known-debt.md)、[README.md](../README.md)、[91-ai-maintenance.md](91-ai-maintenance.md)
-> **最后更新**：2026-07-26
+> **最后更新**：2026-07-27
 
 ## 当前阶段
 
 | 字段 | 值 |
 |------|----|
-| 阶段 | StructChooser 适配 UE5.7.4 可编译 + 功能可用 |
-| 基线日期 | 2026-07-26 |
+| 阶段 | StructChooser UE5.7 + 误选 Object 崩溃修复 |
+| 基线日期 | 2026-07-27 |
 | 技术债索引 | [60-known-debt.md](60-known-debt.md) |
 
 同步更新 [README.md](../README.md)「改造状态」表。
@@ -30,6 +30,17 @@
 ```
 
 ## 条目
+
+### 2026-07-27 — 移植主干 5.8「修复Crash」（误选 Object 结果类型）
+
+- **动机**：单元格选 Asset 等时，同步 Sanitize 改写内存，引擎 Asset 控件仍解引用 → 崩溃。主干 `9f39038` 不能直接合到 5.7。
+- **方案**（对齐主干，适配 5.7）：
+  - `ReplaceInvalidResultAt` + 单元格守卫立刻建 Struct UI
+  - `RegisterObjectResultCrashGuards` 覆盖 Object 结果控件（Nested 用五参数 creator，无 `IChooserTableWidgetInterface`）
+  - `PostLoad` / `PreSave` / `PostTransacted` 兜底 Sanitize
+- **影响面**：StructChooser / StructChooserEditor
+- **文档同步**：`40`/`60`/本条目
+- **关联债务**：缓解 D1（点选不崩）
 
 ### 2026-07-26 — 适配 UE5.7.4 Chooser API（不改引擎）
 
