@@ -4,14 +4,22 @@
 > **何时阅读**：规划改造、排查诡异行为、评估「能不能动这块」时。
 > **相关源码**：全插件
 > **相关文档**：[90-refactor-log.md](90-refactor-log.md)、[01-architecture.md](01-architecture.md)
-> **最后更新**：2026-07-26（D1：Details 过滤 + PostEdit 纠正已缓解）
+> **最后更新**：2026-07-26（UE5.7 适配；D5）
 
 ## 基线快照
 
 - **日期**：2026-07-26
+- **引擎**：UE 5.7.4（项目 `NextGame.uproject`）
 - **状态**：插件功能可用；下列条目来自实现审阅，非完整审计。
 
 ## 债务清单
+
+### D5 — 引擎 Chooser 创建对话框无法产出 UStructChooserTable（UE5.7）
+
+- **位置**：`FStructChooserInitializer`；引擎 `UChooserTableFactory`
+- **问题**：UE5.7 `FChooserInitializer` 无 `OverrideClass`；工厂固定 `NewObject<UChooserTable>`。
+- **缓解**：Initializer `Meta=(Hidden)`；创建入口仅 `UStructChooserTableFactory`。
+- **建议方向**：升级到带 OverrideClass 的引擎版本后再暴露 Initializer；或自建完整创建 UI（已有 Factory）。
 
 ### D1 — Add Row / 单元格类型下拉仍混排（不改引擎；已部分缓解）
 

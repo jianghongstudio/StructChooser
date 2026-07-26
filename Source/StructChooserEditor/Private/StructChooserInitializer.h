@@ -3,14 +3,18 @@
 #include "ChooserInitializer.h"
 #include "StructChooserInitializer.generated.h"
 
-/** Create-dialog entry (via engine Chooser factory) that produces a UStructChooserTable. */
-USTRUCT(DisplayName = "Struct Result Chooser", Meta = (ToolTip = "A ChooserTable subclass that returns a struct instance as its primary result. Supports Evaluate/Nested Struct Chooser rows. Use the Evaluate Struct Chooser Blueprint node."))
+/**
+ * Optional initializer for programmatic setup of a UStructChooserTable.
+ * UE5.7 ChooserFactory has no OverrideClass — create assets via UStructChooserTableFactory
+ * (Content Browser → Struct Chooser Table). Hidden so it does not appear in the engine
+ * Chooser create-dialog type list (which can only spawn UChooserTable).
+ */
+USTRUCT(Meta = (Hidden))
 struct FStructChooserInitializer : public FChooserInitializer
 {
 	GENERATED_BODY()
 
-	virtual UClass* OverrideClass(UClass* Class) const override;
-	virtual void InitializeSignature(UChooserSignature* ChooserSignature) const override;
+	virtual void Initialize(UChooserTable* Chooser) const override;
 
 	UPROPERTY(EditAnywhere, Category = "Result", Meta = (AllowAbstract = "false"))
 	TObjectPtr<UScriptStruct> OutputStructType;

@@ -4,7 +4,7 @@
 > **何时阅读**：改工厂、Result UI、Add Row、打开编辑器方式时。
 > **相关源码**：`Source/StructChooserEditor/`
 > **相关文档**：[10-asset-model.md](10-asset-model.md)、[60-known-debt.md](60-known-debt.md)
-> **最后更新**：2026-07-26（行 Details Result 过滤 + PostEdit 误选纠正）
+> **最后更新**：2026-07-26（UE5.7 兼容：Style 查注册表 / Initializer Hidden）
 
 ## 打开编辑器
 
@@ -20,22 +20,22 @@ UAssetDefinitionRegistry → UChooserTable 的 AssetDefinition → OpenAssets
 
 | 入口 | 类型 |
 |------|------|
-| Content Browser → Struct Chooser Table | `UStructChooserTableFactory`：弹 StructViewer 选 `OutputStructType` |
-| 引擎 Chooser 创建对话框（可选） | `FStructChooserInitializer`：`OverrideClass` → `UStructChooserTable` |
+| Content Browser → Struct Chooser Table | `UStructChooserTableFactory`：弹 StructViewer 选 `OutputStructType`（**主入口**） |
+| `FStructChooserInitializer` | `Meta=(Hidden)`；UE5.7 无 `OverrideClass`，引擎 Chooser 创建对话框只能生成 `UChooserTable`，故不暴露 |
 
 创建后：`ApplyStructChooserDefaults`、默认一行 `FStructValueChooser`。
 
 ## Result 单元格控件
 
-在 `StructChooserEditorModule::StartupModule` 注册：
+在 `StructChooserEditorModule::StartupModule` 注册（`FChooserWidgetCreator` 五参数签名，与 UE5.7 一致）：
 
 | 行类型 | 控件要点 |
 |--------|----------|
 | `FStructValueChooser` | 左：`SEditableTextBox`（`Name`，空时 Hint=`Enter name...`）；右：弱化结构体类型名 |
 | `FEvaluateStructChooser` | `SObjectPropertyEntryBox`，仅 `UStructChooserTable`，按 `OutputStructType` 过滤 |
-| `FNestedStructChooser` | 新建/选择嵌入 `UStructChooserTable`，同步类型与 `RootChooser` |
+| `FNestedStructChooser` | 新建/选择嵌入 `UStructChooserTable`，同步类型与 `RootChooser`；图标经 `FSlateStyleRegistry::FindSlateStyle("ChooserEditorStyle")`（Style 头文件为引擎 Private） |
 
-结构体字段值仍在 Details 中编辑（选中行）。
+结构体字段值仍在 Details 中编辑（选中行）。Nested 的 Edit：`FocusWindow(NestedChooser)`（`PushChooserTableToEdit` 未导出）。
 
 ## 结果类型菜单（不改引擎）
 
@@ -67,4 +67,4 @@ UAssetDefinitionRegistry → UChooserTable 的 AssetDefinition → OpenAssets
 
 ## 待充实
 
-- Nested 树中嵌入 Struct 表与引擎 Nested Chooser 混用时的 UX 边界说明
+- Nested 树中嵌入 Struct 表与引擎 Nested Chooser 混用混合时的 UX 边界说明

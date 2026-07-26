@@ -1,7 +1,6 @@
 #include "StructChooserEditorWidgets.h"
 #include "StructChooserTypes.h"
 #include "StructChooserTable.h"
-#include "ChooserEditorStyle.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -19,12 +18,23 @@
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
 #define LOCTEXT_NAMESPACE "StructChooserEditorWidgets"
 
 namespace UE::StructChooserEditor
 {
 using namespace UE::ChooserEditor;
+
+static const FSlateBrush* GetChooserTableIconSmall()
+{
+	// ChooserEditorStyle.h is Private to ChooserEditor — look up the registered style by name.
+	if (const ISlateStyle* Style = FSlateStyleRegistry::FindSlateStyle(FName(TEXT("ChooserEditorStyle"))))
+	{
+		return Style->GetBrush(TEXT("ChooserEditor.ChooserTableIconSmall"));
+	}
+	return FAppStyle::GetBrush(TEXT("ClassIcon.Object"));
+}
 
 static void EnsureStructValueType(FStructValueChooser* StructChooser, UObject* TransactionObject)
 {
@@ -158,7 +168,7 @@ static TSharedRef<SWidget> CreateEvaluateStructChooserWidget(bool bReadOnly, UOb
 		});
 }
 
-static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged, IChooserTableWidgetInterface* ChooserWidgetInterface)
+static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
 {
 	FNestedStructChooser* NestedChooser = static_cast<FNestedStructChooser*>(Value);
 
@@ -170,7 +180,7 @@ static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObje
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(SImage).Image(FChooserEditorStyle::Get().GetBrush("ChooserEditor.NestedChooserIcon"))
+				SNew(SImage).Image(GetChooserTableIconSmall())
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.0).Padding(2)
 			[
@@ -318,15 +328,13 @@ static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObje
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("Edit", "Edit"))
-			.OnClicked_Lambda([NestedChooser, TransactionObject, ChooserWidgetInterface]()
+			.OnClicked_Lambda([NestedChooser, TransactionObject]()
 			{
 				if (NestedChooser->Chooser)
 				{
-					if (ChooserWidgetInterface)
-					{
-						ChooserWidgetInterface->OpenObject(NestedChooser->Chooser);
-					}
-					else if (UObject* RootChooser = TransactionObject->GetPackage()->FindAssetInPackage())
+					// FChooserTableEditor / PushChooserTableToEdit are Private to ChooserEditor.
+					// FocusWindow still switches the open Chooser table editor to the nested object.
+					if (UObject* RootChooser = TransactionObject->GetPackage()->FindAssetInPackage())
 					{
 						if (IAssetEditorInstance* Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(RootChooser, false))
 						{

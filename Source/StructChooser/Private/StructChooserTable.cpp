@@ -246,7 +246,7 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 {
 	if (Chooser == nullptr)
 	{
-		return FObjectChooserBase::EIteratorStatus::Failed;
+		return FObjectChooserBase::EIteratorStatus::Continue;
 	}
 
 	VALIDATE_CHOOSER_CONTEXT(Chooser, Chooser->ContextData, Context);
@@ -376,7 +376,8 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 		if (const FStructChooserBase* SelectedResult = (*ResultsArray)[SelectedIndexData.Index].GetPtr<FStructChooserBase>())
 		{
 			const FObjectChooserBase::EIteratorStatus Status = SelectedResult->ChooseMultiStruct(Context, Callback);
-			if (Status != FObjectChooserBase::EIteratorStatus::Failed)
+			// UE5.7: Continue == no hit; ContinueWithOutputs / Stop == produced a result.
+			if (Status != FObjectChooserBase::EIteratorStatus::Continue)
 			{
 				bAnyRowSucceeded = true;
 			}
@@ -402,8 +403,9 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 			if (const FStructChooserBase* SelectedResult = Chooser->FallbackResult.GetPtr<FStructChooserBase>())
 			{
 				const FObjectChooserBase::EIteratorStatus Status = SelectedResult->ChooseMultiStruct(Context, Callback);
-				if (Status != FObjectChooserBase::EIteratorStatus::Failed)
+				if (Status != FObjectChooserBase::EIteratorStatus::Continue)
 				{
+					bAnyRowSucceeded = true;
 					ScratchAreaStart = 0;
 					for (const FInstancedStruct& ColumnData : Chooser->ColumnsStructs)
 					{
@@ -424,7 +426,9 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 	}
 
 	DeinitializeScratchAreas();
-	return bAnyRowSucceeded ? FObjectChooserBase::EIteratorStatus::Continue : FObjectChooserBase::EIteratorStatus::Failed;
+	return bAnyRowSucceeded
+		? FObjectChooserBase::EIteratorStatus::ContinueWithOutputs
+		: FObjectChooserBase::EIteratorStatus::Continue;
 }
 
 bool UStructChooserTable::EvaluateStructChooserFirst(

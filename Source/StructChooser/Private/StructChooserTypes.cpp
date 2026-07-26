@@ -17,9 +17,10 @@ FObjectChooserBase::EIteratorStatus FStructValueChooser::ChooseMultiStruct(FChoo
 {
 	if (!Value.IsValid())
 	{
-		return EIteratorStatus::Failed;
+		return EIteratorStatus::Continue;
 	}
-	return Callback.Execute(Value);
+	const EIteratorStatus Status = Callback.Execute(Value);
+	return Status == EIteratorStatus::Continue ? EIteratorStatus::ContinueWithOutputs : Status;
 }
 
 void FStructValueChooser::GetDebugName(FString& OutDebugName) const

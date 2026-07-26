@@ -4,16 +4,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StructChooserInitializer)
 
-UClass* FStructChooserInitializer::OverrideClass(UClass* Class) const
+void FStructChooserInitializer::Initialize(UChooserTable* Chooser) const
 {
-	return UStructChooserTable::StaticClass();
-}
-
-void FStructChooserInitializer::InitializeSignature(UChooserSignature* ChooserSignature) const
-{
-	UStructChooserTable* Table = Cast<UStructChooserTable>(ChooserSignature);
+	UStructChooserTable* Table = Cast<UStructChooserTable>(Chooser);
 	if (!Table)
 	{
+		// UE5.7 factory always creates UChooserTable; StructChooser assets must use UStructChooserTableFactory.
 		return;
 	}
 

@@ -10,7 +10,7 @@
 
 | 字段 | 值 |
 |------|----|
-| 阶段 | StructChooser 插件可用 + 知识库框架已搭建 |
+| 阶段 | StructChooser 适配 UE5.7.4 可编译 + 功能可用 |
 | 基线日期 | 2026-07-26 |
 | 技术债索引 | [60-known-debt.md](60-known-debt.md) |
 
@@ -30,6 +30,19 @@
 ```
 
 ## 条目
+
+### 2026-07-26 — 适配 UE5.7.4 Chooser API（不改引擎）
+
+- **动机**：插件按 UE5.8 Chooser API 编写，在当前引擎 5.7.4 下无法编译。
+- **方案**：
+  - `EIteratorStatus::Failed` → `Continue` / 成功用 `ContinueWithOutputs`；Callback 的 `Continue` 提升为 `ContinueWithOutputs` 以保 Multi/Fallback 语义
+  - `FStructChooserInitializer`：去掉 `OverrideClass` / `InitializeSignature`，改为 `Initialize(UChooserTable*)`，并 `Meta=(Hidden)`（引擎工厂无 OverrideClass）
+  - EditorWidgets：不 include Private `ChooserEditorStyle.h`，改 `FSlateStyleRegistry`；Nested Widget 对齐五参数 `FChooserWidgetCreator`；去掉 `IChooserTableWidgetInterface`
+  - Factory：去掉不存在的 `UChooserTable::CurrentVersion`
+- **影响面**：StructChooser / StructChooserEditor Runtime+Editor；行为对齐原 Failed 语义
+- **废弃 / 迁移**：勿从引擎「Chooser Table」创建对话框选 Struct（已 Hidden）；请用 Content Browser → Struct Chooser Table
+- **文档同步**：`11`/`40`/`60`/本条目；README 改造状态
+- **关联债务**：新增 D5（引擎创建对话框无法 OverrideClass）
 
 ### 2026-07-26 — 插件侧 Details 过滤 + 误选纠正（不改引擎）
 

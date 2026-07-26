@@ -48,10 +48,11 @@ UStructChooserTable (OutputStructType)
 | 项 | 状态 |
 |----|------|
 | 知识文档框架 | 已搭建（骨架 + 路由 + 基线） |
-| Runtime：Struct 主结果 + Nested/Evaluate | 已落地 |
-| Editor：复用引擎 Chooser 表编辑器 + Result Name UI | 已落地 |
+| Runtime：Struct 主结果 + Nested/Evaluate | 已落地（UE5.7 `EIteratorStatus` 语义适配） |
+| Editor：复用引擎 Chooser 表编辑器 + Result Name UI | 已落地（不依赖引擎 Private Style / WidgetInterface） |
 | Add Row / 单元格类型过滤 | 不改引擎做不到藏菜单；Details 已过滤 + PostEdit 误选纠正 |
 | BP：`UK2Node_EvaluateStructChooser` | 已落地 |
 | 自动化测试 `StructChooser.Evaluate.*` | 已落地 |
+| 目标引擎 | **UE 5.7.4**（不改引擎 Chooser 源码） |
 
 当前阶段摘要：可创建 StructChooser 表、填 Struct 行名与详情、嵌套/外链评估、蓝图取结构体。见 [01-architecture.md](.Knowledges/01-architecture.md)。

@@ -27,9 +27,12 @@ public:
 		FInstancedStruct Result;
 		if (ChooseStruct(Context, Result) && Result.IsValid())
 		{
-			return Callback.Execute(Result);
+			// UE5.7 has no EIteratorStatus::Failed. Promote Continue→ContinueWithOutputs so
+			// Multi-mode still counts as a successful hit (mirrors 5.8 Failed/success split).
+			const EIteratorStatus Status = Callback.Execute(Result);
+			return Status == EIteratorStatus::Continue ? EIteratorStatus::ContinueWithOutputs : Status;
 		}
-		return EIteratorStatus::Failed;
+		return EIteratorStatus::Continue;
 	}
 };
 
