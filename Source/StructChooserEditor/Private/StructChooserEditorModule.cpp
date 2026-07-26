@@ -1,31 +1,39 @@
 #include "Modules/ModuleManager.h"
-#include "ObjectChooserWidgetFactories.h"
+#include "PropertyEditorModule.h"
+#include "StructChooserDetails.h"
 #include "StructChooserEditorWidgets.h"
+#include "StructChooserRowDetails.h"
 #include "StructChooserTable.h"
-#include "StructChooserTypes.h"
 
 class FStructChooserEditorModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override
 	{
+		// Ensure engine ChooserEditor has registered its ChooserRowDetails layout first;
+		// our registration replaces it (TMap::Add).
+		FModuleManager::LoadModuleChecked<IModuleInterface>("ChooserEditor");
+
 		UE::StructChooserEditor::RegisterStructChooserWidgets();
 
-		UE::ChooserEditor::FObjectChooserWidgetFactories::RegisterResultTypeFilter(
-			[](const UChooserTable* Chooser, const UScriptStruct* ResultType) -> bool
-			{
-				const bool bIsStructChooserResult = ResultType->IsChildOf(FStructChooserBase::StaticStruct());
-				const bool bIsStructChooserTable = Chooser && Chooser->IsA<UStructChooserTable>();
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(
+			UStructChooserTable::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FStructChooserDetails::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(
+			TEXT("ChooserRowDetails"),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FStructChooserRowDetails::MakeInstance));
+	}
 
-				// StructChooser tables: only StructChooser result row types
-				if (bIsStructChooserTable)
-				{
-					return bIsStructChooserResult;
-				}
-
-				// Normal Chooser tables: hide StructChooser-only result types
-				return !bIsStructChooserResult;
-			});
+	virtual void ShutdownModule() override
+	{
+		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+			PropertyModule.UnregisterCustomClassLayout(UStructChooserTable::StaticClass()->GetFName());
+			// Restore engine layout if ChooserEditor is still loaded
+			PropertyModule.UnregisterCustomClassLayout(TEXT("ChooserRowDetails"));
+		}
 	}
 };
 

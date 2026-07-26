@@ -5,7 +5,16 @@
 #include "Misc/DataValidation.h"
 #include "Algo/Sort.h"
 
+#if WITH_EDITOR
+#include "Framework/Notifications/NotificationManager.h"
+#include "Styling/CoreStyle.h"
+#include "Misc/TransactionObjectEvent.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StructChooserTable)
+
+DEFINE_LOG_CATEGORY_STATIC(LogStructChooser, Log, All);
 
 UStructChooserTable::UStructChooserTable()
 {
@@ -34,6 +43,76 @@ void UStructChooserTable::Compile(bool bForce)
 }
 
 #if WITH_EDITOR
+void UStructChooserTable::MakeDefaultStructValueResult(FInstancedStruct& OutResult) const
+{
+	OutResult.InitializeAs(FStructValueChooser::StaticStruct());
+	if (OutputStructType)
+	{
+		OutResult.GetMutable<FStructValueChooser>().Value.InitializeAs(OutputStructType);
+	}
+}
+
+bool UStructChooserTable::SanitizeInvalidStructResults()
+{
+	// Table editor Add Row / cell type changes use Modify + InitializeAs (no PostEditChangeProperty).
+	static bool bIsSanitizing = false;
+	if (bIsSanitizing)
+	{
+		return false;
+	}
+
+	bool bChanged = false;
+
+	auto SanitizeOne = [this, &bChanged](FInstancedStruct& ResultData, const TCHAR* Where)
+	{
+		if (!ResultData.IsValid())
+		{
+			return;
+		}
+
+		const bool bIsStructChooserResult = ResultData.GetPtr<FStructChooserBase>() != nullptr;
+		const bool bIsObjectChooserResult = ResultData.GetPtr<FObjectChooserBase>() != nullptr;
+		if (bIsObjectChooserResult && !bIsStructChooserResult)
+		{
+			const FString OldType = GetNameSafe(ResultData.GetScriptStruct());
+			MakeDefaultStructValueResult(ResultData);
+			bChanged = true;
+
+			UE_LOG(LogStructChooser, Warning,
+				TEXT("%s: Replaced invalid result type '%s' with Struct on '%s'. StructChooser only supports Struct / Evaluate Struct Chooser / Nested Struct Chooser."),
+				Where,
+				*OldType,
+				*GetPathName());
+		}
+	};
+
+	bIsSanitizing = true;
+
+#if WITH_EDITORONLY_DATA
+	for (int32 Index = 0; Index < ResultsStructs.Num(); ++Index)
+	{
+		SanitizeOne(ResultsStructs[Index], *FString::Printf(TEXT("Row %d"), Index));
+	}
+#endif
+	SanitizeOne(FallbackResult, TEXT("Fallback"));
+
+	bIsSanitizing = false;
+
+	if (bChanged)
+	{
+		FNotificationInfo Info(NSLOCTEXT(
+			"StructChooser",
+			"InvalidResultReplaced",
+			"StructChooser only supports Struct / Evaluate Struct Chooser / Nested Struct Chooser. Invalid Object result types were reset to Struct."));
+		Info.ExpireDuration = 5.0f;
+		Info.bUseSuccessFailIcons = true;
+		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+
+	return bChanged;
+}
+
 void UStructChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -44,6 +123,13 @@ void UStructChooserTable::PostEditChangeProperty(FPropertyChangedEvent& Property
 	}
 
 	ApplyStructChooserDefaults();
+	SanitizeInvalidStructResults();
+}
+
+void UStructChooserTable::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	Super::PostTransacted(TransactionEvent);
+	SanitizeInvalidStructResults();
 }
 
 bool UStructChooserTable::DoesChildMatchOutputType(const UStructChooserTable* Child) const

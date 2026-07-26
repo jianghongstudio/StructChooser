@@ -24,6 +24,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 	FStructChooserOutputStructTypeChanged OnOutputStructTypeChanged;
 #endif
@@ -54,5 +55,8 @@ private:
 #if WITH_EDITOR
 	void ValidateStructResults(FDataValidationContext* Context, bool& bHasErrors) const;
 	bool DoesChildMatchOutputType(const UStructChooserTable* Child) const;
+	/** Replace ObjectChooser rows that are not FStructChooserBase; returns true if anything changed. */
+	bool SanitizeInvalidStructResults();
+	void MakeDefaultStructValueResult(FInstancedStruct& OutResult) const;
 #endif
 };

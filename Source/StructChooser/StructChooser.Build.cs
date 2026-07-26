@@ -18,5 +18,14 @@ public class StructChooser : ModuleRules
 		{
 			"GameplayTags",
 		});
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[]
+			{
+				"Slate",
+				"SlateCore",
+			});
+		}
 	}
 }
