@@ -19,8 +19,8 @@
 - **问题**：不改 `ChooserEditor` 时无法过滤 Add Row / 单元格类型列表。
 - **缓解**：
   - 行 Details Result：`FStructChooserRowDetails` 将 `BaseStruct` → `StructChooserBase`
-  - 误选：`SanitizeInvalidStructResults`（PostEdit / PostTransacted）重置为 Struct 并通知；`IsDataValid` 仍校验
-- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选会被纠正）。
+  - 误选：单元格守卫立刻改回 Struct 并画 Struct UI；`PostTransacted` 同步兜底；`IsDataValid` 仍校验
+- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选不崩，会被纠正）。
 - **建议方向（完整清菜单）**：自建 StructChooser 表编辑器。
 - **约束**：不改引擎 Chooser 源码。
 

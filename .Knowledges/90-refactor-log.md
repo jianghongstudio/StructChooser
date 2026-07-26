@@ -42,6 +42,13 @@
 - **文档同步**：`40`/`60`
 - **关联债务**：缓解 D1（Add Row/单元格仍混排）
 
+### 2026-07-26 — 修复误选 Object 结果类型崩溃
+
+- **动机**：单元格选 Asset 等时，同步 Sanitize 改写内存，引擎 Asset 控件仍解引用 → 崩溃。
+- **方案**：覆盖 Object 结果控件；在守卫里 `ReplaceInvalidResultAt` 后立即创建 Struct 控件（无需延后一帧）；`PostTransacted` 同步兜底 Add Row。
+- **影响面**：StructChooserEditor widgets；StructChooserTable 事务钩子
+- **文档同步**：`40`
+
 ### 2026-07-26 — 撤回引擎 ChooserEditor ResultTypeFilter
 
 - **动机**：项目约定「不改引擎」；此前为过滤 Add Row/Details 菜单改了 `ChooserEditor`，违反约定。

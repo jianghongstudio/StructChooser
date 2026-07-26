@@ -15,6 +15,8 @@ public:
 		FModuleManager::LoadModuleChecked<IModuleInterface>("ChooserEditor");
 
 		UE::StructChooserEditor::RegisterStructChooserWidgets();
+		// After ChooserEditor (and preferably ProxyTableEditor) widget registration.
+		UE::StructChooserEditor::RegisterObjectResultCrashGuards();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout(

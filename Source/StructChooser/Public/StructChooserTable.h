@@ -25,7 +25,19 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+
+	/** Replace all non-StructChooser Object result rows. */
+	bool SanitizeInvalidStructResults();
+
+	/**
+	 * If ValueMemory points at an invalid Object result on this table, retype it to FStructValueChooser.
+	 * Used by cell widget guards so the UI can immediately show a Struct widget (no deferred sanitize).
+	 * @return Fresh GetMutableMemory() after retype (InitializeAs may reallocate), or nullptr if unchanged / not found.
+	 */
+	void* ReplaceInvalidResultAt(void* ValueMemory);
+
 	FStructChooserOutputStructTypeChanged OnOutputStructTypeChanged;
 #endif
 
@@ -55,8 +67,7 @@ private:
 #if WITH_EDITOR
 	void ValidateStructResults(FDataValidationContext* Context, bool& bHasErrors) const;
 	bool DoesChildMatchOutputType(const UStructChooserTable* Child) const;
-	/** Replace ObjectChooser rows that are not FStructChooserBase; returns true if anything changed. */
-	bool SanitizeInvalidStructResults();
 	void MakeDefaultStructValueResult(FInstancedStruct& OutResult) const;
+	void NotifyInvalidResultReplaced() const;
 #endif
 };

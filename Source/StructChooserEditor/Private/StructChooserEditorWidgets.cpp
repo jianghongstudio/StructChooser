@@ -1,7 +1,10 @@
 #include "StructChooserEditorWidgets.h"
 #include "StructChooserTypes.h"
 #include "StructChooserTable.h"
+#include "Chooser.h"
 #include "ChooserEditorStyle.h"
+#include "ObjectChooser_Asset.h"
+#include "ObjectChooser_Class.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -10,6 +13,8 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Modules/ModuleManager.h"
+#include "IObjectChooser.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -19,6 +24,7 @@
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Styling/AppStyle.h"
+#include "DetailLayoutBuilder.h"
 
 #define LOCTEXT_NAMESPACE "StructChooserEditorWidgets"
 
@@ -344,6 +350,217 @@ void RegisterStructChooserWidgets()
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FStructValueChooser::StaticStruct(), CreateStructValueChooserWidget);
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEvaluateStructChooser::StaticStruct(), CreateEvaluateStructChooserWidget);
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FNestedStructChooser::StaticStruct(), CreateNestedStructChooserWidget);
+}
+
+static bool IsStructChooserTransaction(UObject* TransactionObject)
+{
+	return Cast<UStructChooserTable>(TransactionObject) != nullptr;
+}
+
+/** Retype invalid Object result, then build the Struct cell widget (no deferred sanitize). */
+static TSharedRef<SWidget> MakeStructChooserGuardWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
+{
+	void* StructValue = Value;
+	if (UStructChooserTable* Table = Cast<UStructChooserTable>(TransactionObject))
+	{
+		// InitializeAs may reallocate — never keep using the pre-replace Value pointer.
+		if (void* NewMemory = Table->ReplaceInvalidResultAt(Value))
+		{
+			StructValue = NewMemory;
+		}
+	}
+	return CreateStructValueChooserWidget(bReadOnly, TransactionObject, StructValue, ResultBaseClass, ValueChanged);
+}
+
+// Object-Chooser fallbacks (engine Create*Widget symbols are not exported).
+static TSharedRef<SWidget> CreateFallbackAssetWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
+{
+	FAssetChooser* DIAsset = static_cast<FAssetChooser*>(Value);
+
+	FAssetReferenceFilterContext AssetReferenceFilterContext;
+	AssetReferenceFilterContext.AddReferencingAssets({&TransactionObject, 1});
+	TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor ? GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
+
+	return SNew(SObjectPropertyEntryBox)
+		.IsEnabled(!bReadOnly)
+		.AllowedClass(ResultBaseClass ? ResultBaseClass : UObject::StaticClass())
+		.ObjectPath_Lambda([DIAsset]() { return DIAsset->Asset ? DIAsset->Asset.GetPath() : FString(); })
+		.OnObjectChanged_Lambda([TransactionObject, DIAsset, ValueChanged](const FAssetData& AssetData)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Asset", "Edit Asset"));
+			TransactionObject->Modify(true);
+			DIAsset->Asset = AssetData.GetAsset();
+			ValueChanged.ExecuteIfBound();
+		})
+		.OnShouldFilterAsset_Lambda([AssetReferenceFilter](const FAssetData& AssetData)
+		{
+			return AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(AssetData);
+		});
+}
+
+static TSharedRef<SWidget> CreateFallbackSoftAssetWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
+{
+	FSoftAssetChooser* DIAsset = static_cast<FSoftAssetChooser*>(Value);
+
+	FAssetReferenceFilterContext AssetReferenceFilterContext;
+	AssetReferenceFilterContext.AddReferencingAssets({&TransactionObject, 1});
+	TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor ? GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
+
+	return SNew(SObjectPropertyEntryBox)
+		.IsEnabled(!bReadOnly)
+		.AllowedClass(ResultBaseClass ? ResultBaseClass : UObject::StaticClass())
+		.ObjectPath_Lambda([DIAsset]() { return DIAsset->Asset.ToSoftObjectPath().ToString(); })
+		.OnObjectChanged_Lambda([TransactionObject, DIAsset, ValueChanged](const FAssetData& AssetData)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Soft Asset", "Edit Soft Asset"));
+			TransactionObject->Modify(true);
+			DIAsset->Asset = AssetData.GetAsset();
+			ValueChanged.ExecuteIfBound();
+		})
+		.OnShouldFilterAsset_Lambda([AssetReferenceFilter](const FAssetData& AssetData)
+		{
+			return AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(AssetData);
+		});
+}
+
+static TSharedRef<SWidget> CreateFallbackClassWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
+{
+	FClassChooser* ClassChooser = static_cast<FClassChooser*>(Value);
+
+	return SNew(SClassPropertyEntryBox)
+		.IsEnabled(!bReadOnly)
+		.MetaClass(ResultBaseClass ? ResultBaseClass : UObject::StaticClass())
+		.SelectedClass_Lambda([ClassChooser]() { return ClassChooser->Class; })
+		.OnSetClass_Lambda([TransactionObject, ClassChooser](const UClass* SelectedClass)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Class", "Edit Class"));
+			TransactionObject->Modify(true);
+			ClassChooser->Class = const_cast<UClass*>(SelectedClass);
+		});
+}
+
+static TSharedRef<SWidget> CreateFallbackEvaluateChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
+{
+	FEvaluateChooser* EvaluateChooser = static_cast<FEvaluateChooser*>(Value);
+
+	return SNew(SObjectPropertyEntryBox)
+		.IsEnabled(!bReadOnly)
+		.AllowedClass(UChooserTable::StaticClass())
+		.ObjectPath_Lambda([EvaluateChooser]()
+		{
+			return EvaluateChooser->Chooser ? EvaluateChooser->Chooser.GetPath() : FString();
+		})
+		.OnObjectChanged_Lambda([TransactionObject, EvaluateChooser, ValueChanged](const FAssetData& AssetData)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Chooser", "Edit Chooser"));
+			TransactionObject->Modify(true);
+			EvaluateChooser->Chooser = Cast<UChooserTable>(AssetData.GetAsset());
+			ValueChanged.ExecuteIfBound();
+		});
+}
+
+static TSharedRef<SWidget> CreateFallbackNestedChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged, IChooserTableWidgetInterface* ChooserWidgetInterface)
+{
+	// Simplified Object-Chooser Nested UI (engine Nested widget is private / unexported).
+	FNestedChooser* NestedChooser = static_cast<FNestedChooser*>(Value);
+
+	return SNew(SObjectPropertyEntryBox)
+		.IsEnabled(!bReadOnly)
+		.AllowedClass(UChooserTable::StaticClass())
+		.ObjectPath_Lambda([NestedChooser]()
+		{
+			return NestedChooser->Chooser ? NestedChooser->Chooser.GetPath() : FString();
+		})
+		.OnObjectChanged_Lambda([TransactionObject, NestedChooser, ValueChanged](const FAssetData& AssetData)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("Edit Nested Chooser", "Edit Nested Chooser"));
+			TransactionObject->Modify(true);
+			NestedChooser->Chooser = Cast<UChooserTable>(AssetData.GetAsset());
+			ValueChanged.ExecuteIfBound();
+		});
+}
+
+void RegisterObjectResultCrashGuards()
+{
+	auto GuardChooserWidget = [](auto&& ObjectChooserFallback) -> FChooserWidgetCreator
+	{
+		return [ObjectChooserFallback = MoveTemp(ObjectChooserFallback)](bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged) -> TSharedRef<SWidget>
+		{
+			if (IsStructChooserTransaction(TransactionObject))
+			{
+				return MakeStructChooserGuardWidget(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged);
+			}
+			return ObjectChooserFallback(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged);
+		};
+	};
+
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FAssetChooser::StaticStruct(),
+		GuardChooserWidget(&CreateFallbackAssetWidget));
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FSoftAssetChooser::StaticStruct(),
+		GuardChooserWidget(&CreateFallbackSoftAssetWidget));
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FClassChooser::StaticStruct(),
+		GuardChooserWidget(&CreateFallbackClassWidget));
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FEvaluateChooser::StaticStruct(),
+		GuardChooserWidget(&CreateFallbackEvaluateChooserWidget));
+
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FNestedChooser::StaticStruct(),
+		[](bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged, IChooserTableWidgetInterface* ChooserWidgetInterface) -> TSharedRef<SWidget>
+		{
+			if (IsStructChooserTransaction(TransactionObject))
+			{
+				return MakeStructChooserGuardWidget(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged);
+			}
+			return CreateFallbackNestedChooserWidget(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged, ChooserWidgetInterface);
+		});
+
+	// Catch-all for any other FObjectChooserBase derivative without a dedicated creator.
+	FObjectChooserWidgetFactories::RegisterWidgetCreator(
+		FObjectChooserBase::StaticStruct(),
+		[](bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged) -> TSharedRef<SWidget>
+		{
+			if (IsStructChooserTransaction(TransactionObject))
+			{
+				return MakeStructChooserGuardWidget(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged);
+			}
+			return SNew(STextBlock)
+				.Text(LOCTEXT("MissingResultWidget", "Select result type..."))
+				.Font(IDetailLayoutBuilder::GetDetailFont());
+		});
+
+	// Lookup Proxy is registered by ProxyTableEditor (may load later).
+	auto RegisterLookupProxyGuard = []()
+	{
+		if (UScriptStruct* LookupProxyStruct = FindObject<UScriptStruct>(nullptr, TEXT("/Script/ProxyTable.LookupProxy")))
+		{
+			FObjectChooserWidgetFactories::RegisterWidgetCreator(
+				LookupProxyStruct,
+				[](bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged) -> TSharedRef<SWidget>
+				{
+					if (IsStructChooserTransaction(TransactionObject))
+					{
+						return MakeStructChooserGuardWidget(bReadOnly, TransactionObject, Value, ResultBaseClass, ValueChanged);
+					}
+					// Leave a neutral placeholder; ProxyTableEditor owns the rich Object-Chooser UI.
+					return SNew(STextBlock)
+						.Text(LOCTEXT("LookupProxyFallback", "Lookup Proxy"))
+						.Font(IDetailLayoutBuilder::GetDetailFont());
+				});
+		}
+	};
+
+	RegisterLookupProxyGuard();
+	FModuleManager::Get().OnModulesChanged().AddLambda([RegisterLookupProxyGuard](FName ModuleName, EModuleChangeReason Reason)
+	{
+		if (Reason == EModuleChangeReason::ModuleLoaded && ModuleName == TEXT("ProxyTableEditor"))
+		{
+			RegisterLookupProxyGuard();
+		}
+	});
 }
 }
 

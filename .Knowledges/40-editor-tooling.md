@@ -43,7 +43,8 @@ UAssetDefinitionRegistry → UChooserTable 的 AssetDefinition → OpenAssets
 |----|------|
 | Add Row / 单元格类型下拉 | 仍可能混入引擎 Object 类型（无扩展点，见 D1） |
 | 行 Details Result 下拉 | `FStructChooserRowDetails` 将 `BaseStruct` 改为 `StructChooserBase`，只显示 Struct 系类型 |
-| 误选 Object 行 | `SanitizeInvalidStructResults`（`PostEditChangeProperty` + `PostTransacted`）重置为 `FStructValueChooser` 并通知 |
+| 误选 Object 行 | 单元格控件创建时立刻 `ReplaceInvalidResultAt` 并画出 Struct 控件；`PostTransacted` 同步兜底 |
+| 点 Asset 等崩溃 | 已防：不在引擎 Asset 控件存活时改内存；守卫里先改类型再建 Struct UI |
 
 约定：Add Row 请只选 StructChooser 分类；误选会被纠正。`IsDataValid` 仍为保存校验防线。
 
