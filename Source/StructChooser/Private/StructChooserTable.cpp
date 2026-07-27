@@ -1,6 +1,7 @@
 #include "StructChooserTable.h"
 #include "ChooserIndexArray.h"
 #include "ChooserPropertyAccess.h"
+#include "ChooserTrace.h"
 #include "IChooserColumn.h"
 #include "Misc/DataValidation.h"
 #include "Algo/Sort.h"
@@ -448,14 +449,19 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 			if (Status != FObjectChooserBase::EIteratorStatus::Continue)
 			{
 				bAnyRowSucceeded = true;
+#if WITH_EDITOR
+				if (Context.DebuggingInfo.bCurrentDebugTarget)
+				{
+					Chooser->SetDebugSelectedRow(SelectedIndexData.Index);
+				}
+#endif
+				// Emits ChooserChannel events for Rewind Debugger "Chooser Evaluation" tracks.
+				TRACE_CHOOSER_EVALUATION(Chooser, Context, SelectedIndexData.Index);
 			}
 
 			if (Status == FObjectChooserBase::EIteratorStatus::Stop)
 			{
 				DeinitializeScratchAreas();
-#if WITH_EDITOR
-				Chooser->SetDebugSelectedRow(SelectedIndexData.Index);
-#endif
 				return FObjectChooserBase::EIteratorStatus::Stop;
 			}
 		}
@@ -464,8 +470,13 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 	if (!bAnyRowSucceeded)
 	{
 #if WITH_EDITOR
-		Chooser->SetDebugSelectedRow(ChooserColumn_SpecialIndex_Fallback);
+		if (Context.DebuggingInfo.bCurrentDebugTarget)
+		{
+			Chooser->SetDebugSelectedRow(ChooserColumn_SpecialIndex_Fallback);
+		}
 #endif
+		TRACE_CHOOSER_EVALUATION(Chooser, Context, ChooserColumn_SpecialIndex_Fallback);
+
 		if (Chooser->FallbackResult.IsValid())
 		{
 			if (const FStructChooserBase* SelectedResult = Chooser->FallbackResult.GetPtr<FStructChooserBase>())

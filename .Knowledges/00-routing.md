@@ -4,7 +4,7 @@
 > **何时阅读**：不确定该打开哪篇 `.Knowledges` 文档时；接到改造任务后的第二步（第一步是 README 索引）。
 > **相关源码**：全插件（本文件不绑定单一路径）
 > **相关文档**：[README.md](../README.md)、[91-ai-maintenance.md](91-ai-maintenance.md)
-> **最后更新**：2026-07-26
+> **最后更新**：2026-07-27
 
 ## 使用方式
 
@@ -20,6 +20,7 @@
 | 查术语含义 | [02-glossary.md](02-glossary.md) | — |
 | 改 `UStructChooserTable` / Result 行类型 | [10-asset-model.md](10-asset-model.md) | [11-evaluation.md](11-evaluation.md) |
 | 改评估循环 / Nested / Evaluate 传播 | [11-evaluation.md](11-evaluation.md) | [10-asset-model.md](10-asset-model.md) |
+| Rewind Debugger / Chooser Evaluation 录制 | [11-evaluation.md](11-evaluation.md) | — |
 | 改 FunctionLibrary / K2 节点 | [13-runtime-consumer.md](13-runtime-consumer.md) | [11-evaluation.md](11-evaluation.md) |
 | 改工厂 / Result 单元格 / Details | [40-editor-tooling.md](40-editor-tooling.md) | 约定不改引擎 |
 | 落地扩展 Checklist | [50-extension-cookbook.md](50-extension-cookbook.md) | 对应领域文档 |
@@ -33,6 +34,7 @@
 |-------------|----------|------|
 | 引擎 Evaluate Chooser 拿不到结构体 | [13-runtime-consumer.md](13-runtime-consumer.md)、[60-known-debt.md](60-known-debt.md) | 必须用 Evaluate Struct Chooser；`ChooseObject` 恒空 |
 | Nested / Evaluate 子表结果不对 | [11-evaluation.md](11-evaluation.md)、[10-asset-model.md](10-asset-model.md) | 核对 `OutputStructType` 是否一致 |
+| Rewind Debugger 无 Chooser Evaluation 轨道 | [11-evaluation.md](11-evaluation.md) | 需 `TRACE_CHOOSER_EVALUATION`；确认 Context 含 AnimInstance |
 | Add Row / 单元格仍出现 Asset 等 | [40-editor-tooling.md](40-editor-tooling.md)、[60-known-debt.md](60-known-debt.md) | D1 残留；误选会被 PostEdit 纠正；Details Result 已过滤 |
 | Result 空名字看起来像已填类型名 | [40-editor-tooling.md](40-editor-tooling.md) | Hint 应为 `Enter name...`，类型名在右侧弱化 |
 | Cook / 运行时没有行结果 | [11-evaluation.md](11-evaluation.md)、[10-asset-model.md](10-asset-model.md) | Editor 用 `ResultsStructs`；Cooked 用 `CookedResults` |

@@ -31,6 +31,15 @@
 
 ## 条目
 
+### 2026-07-27 — Rewind Debugger 接入 TRACE_CHOOSER_EVALUATION
+
+- **动机**：`EvaluateStructChooser` 功能正常，但未 emit `ChooserChannel`，Rewind Debugger「Chooser Evaluation」轨道为空。
+- **方案**：对齐引擎 `UChooserTable::EvaluateChooser`，在命中行与 Fallback 路径调用 `TRACE_CHOOSER_EVALUATION`；`SetDebugSelectedRow` 仅在 `bCurrentDebugTarget` 时设置。
+- **影响面**：`StructChooserTable.cpp` Runtime 评估；编辑器 Trace / Rewind Debugger
+- **废弃 / 迁移**：无；Live Coding / 重编后重新录制即可
+- **文档同步**：`11-evaluation.md`、`00-routing.md`、本日志
+- **关联债务**：无
+
 ### 2026-07-27 — 移植主干 5.8「修复Crash」（误选 Object 结果类型）
 
 - **动机**：单元格选 Asset 等时，同步 Sanitize 改写内存，引擎 Asset 控件仍解引用 → 崩溃。主干 `9f39038` 不能直接合到 5.7。
