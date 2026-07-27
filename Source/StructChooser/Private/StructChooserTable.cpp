@@ -1,6 +1,7 @@
 #include "StructChooserTable.h"
 #include "ChooserIndexArray.h"
 #include "ChooserPropertyAccess.h"
+#include "ChooserTrace.h"
 #include "IChooserColumn.h"
 #include "Misc/DataValidation.h"
 #include "Algo/Sort.h"
@@ -451,6 +452,8 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 			if (Status == FObjectChooserBase::EIteratorStatus::Stop)
 			{
 				DeinitializeScratchAreas();
+				// Emits ChooserChannel events for Rewind Debugger "Chooser Evaluation" tracks.
+				TRACE_CHOOSER_EVALUATION(Chooser, Context, SelectedIndexData.Index);
 #if WITH_EDITOR
 				Chooser->SetDebugSelectedRow(SelectedIndexData.Index);
 #endif
@@ -461,6 +464,7 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 
 	if (!bAnyRowSucceeded)
 	{
+		TRACE_CHOOSER_EVALUATION(Chooser, Context, ChooserColumn_SpecialIndex_Fallback);
 #if WITH_EDITOR
 		Chooser->SetDebugSelectedRow(ChooserColumn_SpecialIndex_Fallback);
 #endif
@@ -489,6 +493,29 @@ FObjectChooserBase::EIteratorStatus UStructChooserTable::EvaluateStructChooser(
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	if (Context.DebuggingInfo.bCurrentDebugTarget)
+	{
+		TArray<int32> SelectedIndices;
+		SelectedIndices.Reserve(FMath::Max(IndicesOut->Num(), 1u));
+		if (IndicesOut->Num() == 0)
+		{
+			SelectedIndices.Add(ChooserColumn_SpecialIndex_Fallback);
+		}
+		else
+		{
+			for (const FChooserIndexArray::FIndexData& IndexEntry : *IndicesOut)
+			{
+				SelectedIndices.Add(IndexEntry.Index);
+			}
+		}
+
+		Chooser->SetDebugSelectedRows(SelectedIndices);
+	}
+#endif
+
+	TRACE_CHOOSER_EVALUATION(Chooser, Context, *IndicesOut);
 
 	DeinitializeScratchAreas();
 	return bAnyRowSucceeded ? FObjectChooserBase::EIteratorStatus::Continue : FObjectChooserBase::EIteratorStatus::Failed;

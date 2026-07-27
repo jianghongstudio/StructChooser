@@ -4,7 +4,7 @@
 > **何时阅读**：改过滤顺序、输出列时机、嵌套传播或调试选中行时。
 > **相关源码**：`Source/StructChooser/Private/StructChooserTable.cpp`、`StructChooserTypes.cpp`
 > **相关文档**：[10-asset-model.md](10-asset-model.md)、[13-runtime-consumer.md](13-runtime-consumer.md)
-> **最后更新**：2026-07-26
+> **最后更新**：2026-07-27（Rewind Debugger TRACE，对齐当前引擎 EvaluateChooser）
 
 ## 入口 API
 
@@ -41,8 +41,11 @@
 
 ## 调试
 
-- Editor：`SetDebugSelectedRow` 在 Stop / Fallback 时设置。
+- Editor：`SetDebugSelectedRow` 在 Stop / Fallback 时设置；Continue（多选）路径用 `SetDebugSelectedRows`（仅 `bCurrentDebugTarget`）。
+- Rewind Debugger：**`TRACE_CHOOSER_EVALUATION`**（与引擎 `EvaluateChooser` 对齐）写入 `ChooserChannel`，才会出现在 **Chooser Evaluation** 轨道：Stop 命中、Fallback、以及 Continue 结束时的 `IndicesOut`。
+- Filter 列的 `TRACE_CHOOSER_VALUE` 仍走引擎列实现（依赖 `UpdateDebugging` 设 `bCurrentDebugTarget`）。
 - `GetDebugName`：`FStructValueChooser` 优先 `Name`，否则结构体类型名。
+- 前提：Context 中需有 `FChooserEvaluationInputObject`（ASM `AnimAssetSelector_ChooserTable` 会绑定 Target AnimInstance），否则 Trace 无 Owner、轨道为空。
 
 ## 自动化测试
 

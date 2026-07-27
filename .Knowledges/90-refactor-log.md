@@ -4,7 +4,7 @@
 > **何时阅读**：了解「为什么现在是这样」；每次实质性改造结束后必须追加。
 > **相关源码**：随条目变化
 > **相关文档**：[60-known-debt.md](60-known-debt.md)、[README.md](../README.md)、[91-ai-maintenance.md](91-ai-maintenance.md)
-> **最后更新**：2026-07-26
+> **最后更新**：2026-07-27
 
 ## 当前阶段
 
@@ -30,6 +30,15 @@
 ```
 
 ## 条目
+
+### 2026-07-27 — Rewind Debugger 接入 TRACE_CHOOSER_EVALUATION（自 Dev_5.7 移植）
+
+- **动机**：`EvaluateStructChooser` 功能正常，但未 emit `ChooserChannel`，Rewind Debugger「Chooser Evaluation」轨道为空。
+- **方案**：对齐当前引擎 `UChooserTable::EvaluateChooser`：Stop / Fallback / Continue(`IndicesOut`) 调用 `TRACE_CHOOSER_EVALUATION`；Continue 路径补 `SetDebugSelectedRows`。
+- **影响面**：`StructChooserTable.cpp` Runtime 评估；编辑器 Trace / Rewind Debugger
+- **废弃 / 迁移**：无；Live Coding / 重编后重新录制即可
+- **文档同步**：`11-evaluation.md`、`00-routing.md`、本日志
+- **关联债务**：无
 
 ### 2026-07-26 — 插件侧 Details 过滤 + 误选纠正（不改引擎）
 
