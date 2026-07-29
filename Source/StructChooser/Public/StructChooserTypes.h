@@ -33,7 +33,9 @@ public:
 	}
 };
 
-USTRUCT(DisplayName = "Struct", Meta = (Category = "StructChooser", Tooltip = "A concrete struct instance returned when this row is selected."))
+// Hidden: keep out of official ObjectResult Add Row (engine MakeCreateResultMenu skips Hidden).
+// StructChooser uses its own table editor with a Struct-only Add Row menu.
+USTRUCT(DisplayName = "Struct", Meta = (Hidden, Category = "StructChooser", Tooltip = "A concrete struct instance returned when this row is selected."))
 struct STRUCTCHOOSER_API FStructValueChooser : public FStructChooserBase
 {
 	GENERATED_BODY()
@@ -50,7 +52,7 @@ struct STRUCTCHOOSER_API FStructValueChooser : public FStructChooserBase
 	FInstancedStruct Value;
 };
 
-USTRUCT(DisplayName = "Evaluate Struct Chooser", Meta = (Category = "StructChooser", Tooltip = "Reference another StructChooserTable asset, evaluated at runtime if this row is selected."))
+USTRUCT(DisplayName = "Evaluate Struct Chooser", Meta = (Hidden, Category = "StructChooser", Tooltip = "Reference another StructChooserTable asset, evaluated at runtime if this row is selected."))
 struct STRUCTCHOOSER_API FEvaluateStructChooser : public FStructChooserBase
 {
 	GENERATED_BODY()
@@ -67,7 +69,7 @@ struct STRUCTCHOOSER_API FEvaluateStructChooser : public FStructChooserBase
 	TObjectPtr<UStructChooserTable> Chooser;
 };
 
-USTRUCT(DisplayName = "Nested Struct Chooser", Meta = (Category = "StructChooser", Tooltip = "Reference another StructChooserTable embedded in this asset, evaluated at runtime if this row is selected."))
+USTRUCT(DisplayName = "Nested Struct Chooser", Meta = (Hidden, Category = "StructChooser", Tooltip = "Reference another StructChooserTable embedded in this asset, evaluated at runtime if this row is selected."))
 struct STRUCTCHOOSER_API FNestedStructChooser : public FStructChooserBase
 {
 	GENERATED_BODY()

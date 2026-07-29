@@ -6,6 +6,8 @@ public class StructChooserEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		PrivateIncludePaths.Add(System.IO.Path.Combine(ModuleDirectory, "Private", "TableEditor"));
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"StructChooser",
@@ -33,6 +35,12 @@ public class StructChooserEditor : ModuleRules
 			"AssetRegistry",
 			"ApplicationCore",
 			"StructViewer",
+			"Persona",
+			"BlueprintGraph",
+			"GameplayTags",
+			"GameplayTagsEditor",
+			"DeveloperSettings",
+			"GraphEditor",
 		});
 	}
 }

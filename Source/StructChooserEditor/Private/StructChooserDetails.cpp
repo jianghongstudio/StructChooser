@@ -1,5 +1,4 @@
 #include "StructChooserDetails.h"
-#include "ChooserSignature.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -12,8 +11,16 @@ TSharedRef<IDetailCustomization> FStructChooserDetails::MakeInstance()
 void FStructChooserDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Placeholder Object Result fields — StructChooser uses OutputStructType instead.
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UChooserSignature, ResultType));
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UChooserSignature, OutputObjectType));
+	DetailBuilder.HideProperty(TEXT("ResultType"));
+	DetailBuilder.HideProperty(TEXT("OutputObjectType"));
+	if (TSharedPtr<IPropertyHandle> ResultTypeHandle = DetailBuilder.GetProperty(TEXT("ResultType")))
+	{
+		ResultTypeHandle->MarkHiddenByCustomization();
+	}
+	if (TSharedPtr<IPropertyHandle> OutputObjectHandle = DetailBuilder.GetProperty(TEXT("OutputObjectType")))
+	{
+		OutputObjectHandle->MarkHiddenByCustomization();
+	}
 
 	// Match FChooserDetails: keep Results/Columns EditAnywhere for row/column selection,
 	// but hide them on the root Table Settings view.

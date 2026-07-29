@@ -4,7 +4,7 @@
 > **何时阅读**：规划改造、排查诡异行为、评估「能不能动这块」时。
 > **相关源码**：全插件
 > **相关文档**：[90-refactor-log.md](90-refactor-log.md)、[01-architecture.md](01-architecture.md)
-> **最后更新**：2026-07-26（D1：Details 过滤 + PostEdit 纠正已缓解）
+> **最后更新**：2026-07-30（D1：自建编辑器结案）
 
 ## 基线快照
 
@@ -13,15 +13,11 @@
 
 ## 债务清单
 
-### D1 — Add Row / 单元格类型下拉仍混排（不改引擎；已部分缓解）
+### D1 — Add Row 菜单无 per-table 钩子（已结案：自建编辑器）
 
-- **位置**：转发打开 `UChooserTable` 编辑器；`SChooserCreateRowButton` / 单元格 `CreateWidget`
-- **问题**：不改 `ChooserEditor` 时无法过滤 Add Row / 单元格类型列表。
-- **缓解**：
-  - 行 Details Result：`FStructChooserRowDetails` 将 `BaseStruct` → `StructChooserBase`
-  - 误选：单元格守卫立刻改回 Struct 并画 Struct UI；`PostTransacted` 同步兜底；`IsDataValid` 仍校验
-- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选不崩，会被纠正）。
-- **建议方向（完整清菜单）**：自建 StructChooser 表编辑器。
+- **位置**：曾依赖引擎 `SChooserCreateRowButton::MakeCreateResultMenu`
+- **结案（2026-07-30）**：`UStructChooserTable` 改走 `FStructChooserTableEditor`；自有 Add Row 仅 Struct 三项；三行类型 `Meta=(Hidden)` 隔离官方。
+- **残留**：自建编辑器与引擎在极少数辅助功能上可能仍有细微差异；升级引擎时需 diff 镜像源。
 - **约束**：不改引擎 Chooser 源码。
 
 ### D2 — 父类 ObjectResult 占位语义易误导（已缓解）

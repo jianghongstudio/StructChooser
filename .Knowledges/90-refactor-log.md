@@ -4,7 +4,7 @@
 > **何时阅读**：了解「为什么现在是这样」；每次实质性改造结束后必须追加。
 > **相关源码**：随条目变化
 > **相关文档**：[60-known-debt.md](60-known-debt.md)、[README.md](../README.md)、[91-ai-maintenance.md](91-ai-maintenance.md)
-> **最后更新**：2026-07-27
+> **最后更新**：2026-07-30
 
 ## 当前阶段
 
@@ -30,6 +30,35 @@
 ```
 
 ## 条目
+
+### 2026-07-30 — 自建 StructChooser 表编辑器（1:1 镜像 + Struct-only Add Row）
+
+- **动机**：引擎 Add Row 无 per-table 钩子；Hidden+右键（Dev_5.7）与 Slate 劫持均不满足「StructChooser 有、官方无、不改引擎」。
+- **方案**：镜像引擎 Private 表编辑栈到 `Private/TableEditor/`（`FStructChooserTableEditor` 等）；AssetDefinition 直接打开自建编辑器；Add Row 仅 Struct 三项；独立 `StructChooserTableToolbar`；删除 `StructChooserAddRowPatch`；类型保持 Hidden；Rewind 共用引擎 Track + 保留 TRACE/Debug 消费。
+- **影响面**：StructChooserEditor；官方 Chooser 编辑器不变。
+- **废弃 / 迁移**：完整重启编辑器；勿再转发 `UChooserTable` AssetDefinition 打开 Struct 表。
+- **文档同步**：本日志；`40-editor-tooling.md`；`60-known-debt.md`（D1 结案）
+- **关联债务**：D1 结案
+
+### 2026-07-30 — Hidden 隔离 + StructChooser 专用 Add Row 注入【已撤销】
+
+- **动机**：曾尝试劫持引擎 Add Row 菜单。
+- **方案**：`StructChooserAddRowPatch` — **已被自建编辑器取代并删除**。
+- **关联债务**：D1
+
+### 2026-07-30 — Add Row 恢复 Struct 选项（去掉三行类型 Hidden）【已撤销】
+
+- **动机**：`Meta=(Hidden)` 后引擎 Add Row 跳过 Struct 类型。
+- **方案**：曾去掉 Hidden —— **已撤销**（污染官方不可接受；现用自建编辑器）。
+- **关联债务**：D1
+
+### 2026-07-30 — 参考 Dev_5.7：Hidden 隔离 + 撤销 Crash Guard（UE5.8 main）
+
+- **动机**：Crash Guard 破坏官方 Nested Edit；需适配 main。
+- **方案**：三行类型 Hidden；删除 Crash Guard；右键菜单；Details Result Type。
+- **废弃 / 迁移**：Add Row UX 由同日自建编辑器结案（见上）
+- **文档同步**：本日志；`40-editor-tooling.md`
+- **关联债务**：对齐 Dev_5.7 D1/D6 结论
 
 ### 2026-07-27 — Rewind Debugger 接入 TRACE_CHOOSER_EVALUATION（自 Dev_5.7 移植）
 

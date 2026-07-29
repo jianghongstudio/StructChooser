@@ -5,7 +5,9 @@
 
 /**
  * Replaces engine FChooserRowDetails for "ChooserRowDetails".
- * On UStructChooserTable rows, narrows Result InstancedStruct BaseStruct to FStructChooserBase.
+ * Non-StructChooser tables: identical to engine (hide Chooser only).
+ * UStructChooserTable: StructTypeConst on Result + custom Result Type combo
+ * (FStructChooserResultFilter) for FStructChooserBase children.
  */
 class FStructChooserRowDetails : public IDetailCustomization
 {
