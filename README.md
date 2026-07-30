@@ -9,10 +9,10 @@
 | 模块 | 类型 | 路径 | 职责 |
 |------|------|------|------|
 | **StructChooser** | Runtime | [`Source/StructChooser/`](Source/StructChooser/) | `UStructChooserTable`、`FStructChooserBase` 行结果、`EvaluateStructChooser*`、FunctionLibrary、自动化测试 |
-| **StructChooserEditor** | Editor | [`Source/StructChooserEditor/`](Source/StructChooserEditor/) | 资产工厂 / AssetDefinition、Result 控件、Table Settings Details、Initializer |
+| **StructChooserEditor** | Editor | [`Source/StructChooserEditor/`](Source/StructChooserEditor/) | 自建表编辑器（`Private/TableEditor/`）、工厂 / AssetDefinition、Result 控件、Toolbar |
 | **StructChooserUncooked** | UncookedOnly | [`Source/StructChooserUncooked/`](Source/StructChooserUncooked/) | `UK2Node_EvaluateStructChooser` |
 
-插件依赖（见 [`StructChooser.uplugin`](StructChooser.uplugin)）：引擎 **Chooser**。编辑器侧依赖 `ChooserEditor`（见 Build.cs）以**复用**表编辑器，**不修改**引擎 Chooser 源码。
+插件依赖（见 [`StructChooser.uplugin`](StructChooser.uplugin)）：引擎 **Chooser**。编辑器侧依赖 `ChooserEditor`（列控件 / 命令 / Style），**自建** StructChooser 表编辑器，**不修改**引擎 Chooser 源码。
 
 ## 主数据流（摘要）
 
@@ -48,11 +48,11 @@ UStructChooserTable (OutputStructType)
 | 项 | 状态 |
 |----|------|
 | 知识文档框架 | 已搭建（骨架 + 路由 + 基线） |
-| Runtime：Struct 主结果 + Nested/Evaluate | 已落地（UE5.7 `EIteratorStatus` 语义适配） |
-| Editor：复用引擎 Chooser 表编辑器 + Result Name UI | 已落地（不依赖引擎 Private Style / WidgetInterface） |
-| Add Row / 单元格类型过滤 | 不改引擎做不到藏菜单；Details 已过滤 + PostEdit 误选纠正 |
+| Runtime：Struct 主结果 + Nested/Evaluate | 已落地（UE5.7 `EIteratorStatus` 适配） |
+| Editor：自建 `FStructChooserTableEditor` + Struct-only Add Row | 已落地（自 main 移植到 Dev_5.7） |
+| 官方 Chooser 隔离 | 行类型 `Hidden`；不覆盖引擎 Object creator |
 | BP：`UK2Node_EvaluateStructChooser` | 已落地 |
 | 自动化测试 `StructChooser.Evaluate.*` | 已落地 |
-| 目标引擎 | **UE 5.7.4**（不改引擎 Chooser 源码） |
+| 目标引擎 | **UE 5.7.4**（`Dev_5.7`）；main 为 5.8 方案源 |
 
-当前阶段摘要：可创建 StructChooser 表、填 Struct 行名与详情、嵌套/外链评估、蓝图取结构体。见 [01-architecture.md](.Knowledges/01-architecture.md)。
+当前阶段摘要：StructChooser 表由自建编辑器打开；Add Row 仅 Struct 三项；官方 ObjectResult 菜单无 StructChooser。见 [40-editor-tooling.md](.Knowledges/40-editor-tooling.md)。

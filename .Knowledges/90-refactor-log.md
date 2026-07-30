@@ -4,14 +4,14 @@
 > **何时阅读**：了解「为什么现在是这样」；每次实质性改造结束后必须追加。
 > **相关源码**：随条目变化
 > **相关文档**：[60-known-debt.md](60-known-debt.md)、[README.md](../README.md)、[91-ai-maintenance.md](91-ai-maintenance.md)
-> **最后更新**：2026-07-27
+> **最后更新**：2026-07-30
 
 ## 当前阶段
 
 | 字段 | 值 |
 |------|----|
-| 阶段 | StructChooser UE5.7 + 误选 Object 崩溃修复 |
-| 基线日期 | 2026-07-27 |
+| 阶段 | StructChooser 插件可用 + 知识库框架已搭建 |
+| 基线日期 | 2026-07-26 |
 | 技术债索引 | [60-known-debt.md](60-known-debt.md) |
 
 同步更新 [README.md](../README.md)「改造状态」表。
@@ -31,38 +31,60 @@
 
 ## 条目
 
-### 2026-07-27 — Rewind Debugger 接入 TRACE_CHOOSER_EVALUATION
+### 2026-07-30 — 修复启动崩溃：本模块 Register FChooserTableEditorCommands
+
+- **动机**：`RegisterStructChooserTableToolbar` 调 `FChooserTableEditorCommands::Get()` 时 `Instance` 无效（`SharedPointer::IsValid` 断言）。
+- **方案**：头文件 `TCommands` 按 DLL 各有静态实例；在 `StructChooserEditorModule::StartupModule` 对本模块再 `Register()`，`Shutdown` 时 `Unregister()`。
+- **影响面**：StructChooserEditor 启动
+- **文档同步**：`60-known-debt.md`（D1 残留说明）
+- **关联债务**：D1 / 跨 DLL TCommands
+
+### 2026-07-30 — 将 main 自建编辑器移植到 Dev_5.7（UE5.7）
+
+- **动机**：主干（UE5.8）已用专用 `FStructChooserTableEditor` 结案 D1；Dev_5.7 需同等方案且适配当前引擎。
+- **方案**：从 `origin/main` 检出 TableEditor / Menus / Toolbar / Hidden 类型；补 shim（`IChooserTableViewModel` 等）；Runtime 保留 5.7 `EIteratorStatus` / TRACE / `SetDebugSelectedRow`；修 Nested 删除 API、`GetObjectsWithOuter`、`DeleteRows(uint32)`、Style 查找、Factory `CurrentVersion`。
+- **影响面**：StructChooser + StructChooserEditor（Dev_5.7）
+- **废弃 / 迁移**：完整重启编辑器；Struct 表走自建编辑器打开
+- **文档同步**：`40-editor-tooling.md`、本日志、`60-known-debt.md`
+- **关联债务**：D1 在 Dev_5.7 同样结案；新增 D7（5.7 shim 维护）
+
+### 2026-07-30 — 自建 StructChooser 表编辑器（1:1 镜像 + Struct-only Add Row）
+
+- **动机**：引擎 Add Row 无 per-table 钩子；Hidden+右键（Dev_5.7）与 Slate 劫持均不满足「StructChooser 有、官方无、不改引擎」。
+- **方案**：镜像引擎 Private 表编辑栈到 `Private/TableEditor/`（`FStructChooserTableEditor` 等）；AssetDefinition 直接打开自建编辑器；Add Row 仅 Struct 三项；独立 `StructChooserTableToolbar`；删除 `StructChooserAddRowPatch`；类型保持 Hidden；Rewind 共用引擎 Track + 保留 TRACE/Debug 消费。
+- **影响面**：StructChooserEditor；官方 Chooser 编辑器不变。
+- **废弃 / 迁移**：完整重启编辑器；勿再转发 `UChooserTable` AssetDefinition 打开 Struct 表。
+- **文档同步**：本日志；`40-editor-tooling.md`；`60-known-debt.md`（D1 结案）
+- **关联债务**：D1 结案
+
+### 2026-07-30 — Hidden 隔离 + StructChooser 专用 Add Row 注入【已撤销】
+
+- **动机**：曾尝试劫持引擎 Add Row 菜单。
+- **方案**：`StructChooserAddRowPatch` — **已被自建编辑器取代并删除**。
+- **关联债务**：D1
+
+### 2026-07-30 — Add Row 恢复 Struct 选项（去掉三行类型 Hidden）【已撤销】
+
+- **动机**：`Meta=(Hidden)` 后引擎 Add Row 跳过 Struct 类型。
+- **方案**：曾去掉 Hidden —— **已撤销**（污染官方不可接受；现用自建编辑器）。
+- **关联债务**：D1
+
+### 2026-07-30 — 参考 Dev_5.7：Hidden 隔离 + 撤销 Crash Guard（UE5.8 main）
+
+- **动机**：Crash Guard 破坏官方 Nested Edit；需适配 main。
+- **方案**：三行类型 Hidden；删除 Crash Guard；右键菜单；Details Result Type。
+- **废弃 / 迁移**：Add Row UX 由同日自建编辑器结案（见上）
+- **文档同步**：本日志；`40-editor-tooling.md`
+- **关联债务**：对齐 Dev_5.7 D1/D6 结论
+
+### 2026-07-27 — Rewind Debugger 接入 TRACE_CHOOSER_EVALUATION（自 Dev_5.7 移植）
 
 - **动机**：`EvaluateStructChooser` 功能正常，但未 emit `ChooserChannel`，Rewind Debugger「Chooser Evaluation」轨道为空。
-- **方案**：对齐引擎 `UChooserTable::EvaluateChooser`，在命中行与 Fallback 路径调用 `TRACE_CHOOSER_EVALUATION`；`SetDebugSelectedRow` 仅在 `bCurrentDebugTarget` 时设置。
+- **方案**：对齐当前引擎 `UChooserTable::EvaluateChooser`：Stop / Fallback / Continue(`IndicesOut`) 调用 `TRACE_CHOOSER_EVALUATION`；Continue 路径补 `SetDebugSelectedRows`。
 - **影响面**：`StructChooserTable.cpp` Runtime 评估；编辑器 Trace / Rewind Debugger
 - **废弃 / 迁移**：无；Live Coding / 重编后重新录制即可
 - **文档同步**：`11-evaluation.md`、`00-routing.md`、本日志
 - **关联债务**：无
-
-### 2026-07-27 — 移植主干 5.8「修复Crash」（误选 Object 结果类型）
-
-- **动机**：单元格选 Asset 等时，同步 Sanitize 改写内存，引擎 Asset 控件仍解引用 → 崩溃。主干 `9f39038` 不能直接合到 5.7。
-- **方案**（对齐主干，适配 5.7）：
-  - `ReplaceInvalidResultAt` + 单元格守卫立刻建 Struct UI
-  - `RegisterObjectResultCrashGuards` 覆盖 Object 结果控件（Nested 用五参数 creator，无 `IChooserTableWidgetInterface`）
-  - `PostLoad` / `PreSave` / `PostTransacted` 兜底 Sanitize
-- **影响面**：StructChooser / StructChooserEditor
-- **文档同步**：`40`/`60`/本条目
-- **关联债务**：缓解 D1（点选不崩）
-
-### 2026-07-26 — 适配 UE5.7.4 Chooser API（不改引擎）
-
-- **动机**：插件按 UE5.8 Chooser API 编写，在当前引擎 5.7.4 下无法编译。
-- **方案**：
-  - `EIteratorStatus::Failed` → `Continue` / 成功用 `ContinueWithOutputs`；Callback 的 `Continue` 提升为 `ContinueWithOutputs` 以保 Multi/Fallback 语义
-  - `FStructChooserInitializer`：去掉 `OverrideClass` / `InitializeSignature`，改为 `Initialize(UChooserTable*)`，并 `Meta=(Hidden)`（引擎工厂无 OverrideClass）
-  - EditorWidgets：不 include Private `ChooserEditorStyle.h`，改 `FSlateStyleRegistry`；Nested Widget 对齐五参数 `FChooserWidgetCreator`；去掉 `IChooserTableWidgetInterface`
-  - Factory：去掉不存在的 `UChooserTable::CurrentVersion`
-- **影响面**：StructChooser / StructChooserEditor Runtime+Editor；行为对齐原 Failed 语义
-- **废弃 / 迁移**：勿从引擎「Chooser Table」创建对话框选 Struct（已 Hidden）；请用 Content Browser → Struct Chooser Table
-- **文档同步**：`11`/`40`/`60`/本条目；README 改造状态
-- **关联债务**：新增 D5（引擎创建对话框无法 OverrideClass）
 
 ### 2026-07-26 — 插件侧 Details 过滤 + 误选纠正（不改引擎）
 
@@ -74,6 +96,13 @@
 - **废弃 / 迁移**：无
 - **文档同步**：`40`/`60`
 - **关联债务**：缓解 D1（Add Row/单元格仍混排）
+
+### 2026-07-26 — 修复误选 Object 结果类型崩溃
+
+- **动机**：单元格选 Asset 等时，同步 Sanitize 改写内存，引擎 Asset 控件仍解引用 → 崩溃。
+- **方案**：覆盖 Object 结果控件；在守卫里 `ReplaceInvalidResultAt` 后立即创建 Struct 控件（无需延后一帧）；`PostTransacted` 同步兜底 Add Row。
+- **影响面**：StructChooserEditor widgets；StructChooserTable 事务钩子
+- **文档同步**：`40`
 
 ### 2026-07-26 — 撤回引擎 ChooserEditor ResultTypeFilter
 

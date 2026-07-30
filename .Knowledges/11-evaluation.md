@@ -4,7 +4,7 @@
 > **何时阅读**：改过滤顺序、输出列时机、嵌套传播或调试选中行时。
 > **相关源码**：`Source/StructChooser/Private/StructChooserTable.cpp`、`StructChooserTypes.cpp`
 > **相关文档**：[10-asset-model.md](10-asset-model.md)、[13-runtime-consumer.md](13-runtime-consumer.md)
-> **最后更新**：2026-07-27（Rewind Debugger TRACE）
+> **最后更新**：2026-07-27（Rewind Debugger TRACE，对齐当前引擎 EvaluateChooser）
 
 ## 入口 API
 
@@ -16,33 +16,20 @@
 
 对照引擎 `UChooserTable::EvaluateChooser`，本路径在命中行后调用 `FStructChooserBase::ChooseMultiStruct`，而不是 `ChooseMulti(UObject*)`。
 
-## `EIteratorStatus`（UE5.7）
-
-引擎枚举仅为 `{ Continue, ContinueWithOutputs, Stop }`（**无** `Failed`）。本插件约定：
-
-| 返回值 | 含义 |
-|--------|------|
-| `Continue` | 未命中 / 无有效结果 |
-| `ContinueWithOutputs` | 命中且产生结果（含 Multi 下 Callback 原返回 `Continue` 时的提升） |
-| `Stop` | 命中且终止迭代 |
-
-`ChooseMultiStruct` 在 Callback 返回 `Continue` 时提升为 `ContinueWithOutputs`，以便 Multi 模式仍被父表计为成功、避免误走 Fallback。
-
 ## 评估步骤（摘要）
 
-1. 空表 → `Continue`。
+1. 空表 → Failed。
 2. `VALIDATE_CHOOSER_CONTEXT`；Editor 下 `UpdateDebugging`。
 3. 结果数组：`CookedResults`，或 Editor 未 Cook 时用 `ResultsStructs`。
 4. 禁用行跳过；逐列 `Filter`（含 ScratchArea / Cost 排序，对齐引擎）。
 5. 对每个候选行：先 `SetOutputs`（Context），再 `ChooseMultiStruct`。
-6. Callback / 行返回 `Stop` → 结束；全部为 `Continue` → 尝试 `FallbackResult`（Struct 版）并写 Fallback 列输出。
-7. 函数返回：有命中 → `ContinueWithOutputs`，否则 → `Continue`。
+6. Callback 返回 `Stop` → 结束；全部 Failed → 尝试 `FallbackResult`（Struct 版）并写 Fallback 列输出。
 
 ## 行级传播
 
 | 行类型 | ChooseMultiStruct |
 |--------|-------------------|
-| `FStructValueChooser` | Callback(`Value`)；Value 无效则 `Continue`；Callback=`Continue` 时提升为 `ContinueWithOutputs` |
+| `FStructValueChooser` | Callback(`Value`)；Value 无效则 Failed |
 | `FEvaluateStructChooser` | `EvaluateStructChooser(Context, Chooser, Callback)` |
 | `FNestedStructChooser` | 同上，指向嵌入表 |
 
@@ -54,8 +41,8 @@
 
 ## 调试
 
-- Editor：`SetDebugSelectedRow` 在命中 / Fallback 时设置（仅 `bCurrentDebugTarget`）。
-- Rewind Debugger：**`TRACE_CHOOSER_EVALUATION`**（与引擎 `EvaluateChooser` 对齐）写入 `ChooserChannel`，才会出现在 **Chooser Evaluation** 轨道；命中行与 Fallback 均会 emit。
+- Editor：`SetDebugSelectedRow` 在 Stop / Fallback 时设置；Continue（多选）路径用 `SetDebugSelectedRows`（仅 `bCurrentDebugTarget`）。
+- Rewind Debugger：**`TRACE_CHOOSER_EVALUATION`**（与引擎 `EvaluateChooser` 对齐）写入 `ChooserChannel`，才会出现在 **Chooser Evaluation** 轨道：Stop 命中、Fallback、以及 Continue 结束时的 `IndicesOut`。
 - Filter 列的 `TRACE_CHOOSER_VALUE` 仍走引擎列实现（依赖 `UpdateDebugging` 设 `bCurrentDebugTarget`）。
 - `GetDebugName`：`FStructValueChooser` 优先 `Name`，否则结构体类型名。
 - 前提：Context 中需有 `FChooserEvaluationInputObject`（ASM `AnimAssetSelector_ChooserTable` 会绑定 Target AnimInstance），否则 Trace 无 Owner、轨道为空。

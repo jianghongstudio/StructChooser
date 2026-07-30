@@ -121,7 +121,6 @@ UObject* UStructChooserTableFactory::FactoryCreateNew(UClass* Class, UObject* In
 	NewChooser->OutputStructType = OutputStructType;
 
 #if WITH_EDITORONLY_DATA
-	// UE5.7 has no UChooserTable::CurrentVersion; default Version on the table is already current.
 	FInstancedStruct& FirstRow = NewChooser->ResultsStructs.AddDefaulted_GetRef();
 	FirstRow.InitializeAs(FStructValueChooser::StaticStruct());
 	if (OutputStructType)

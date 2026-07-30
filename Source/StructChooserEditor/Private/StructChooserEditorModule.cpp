@@ -1,40 +1,50 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "ChooserTableEditorCommands.h"
 #include "StructChooserDetails.h"
+#include "StructChooserEditorMenus.h"
 #include "StructChooserEditorWidgets.h"
-#include "StructChooserRowDetails.h"
 #include "StructChooserTable.h"
+#include "StructChooserTableEditor.h"
+#include "StructChooserTableToolbar.h"
 
 class FStructChooserEditorModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override
 	{
-		// Ensure engine ChooserEditor has registered its ChooserRowDetails layout first;
-		// our registration replaces it (TMap::Add).
 		FModuleManager::LoadModuleChecked<IModuleInterface>("ChooserEditor");
 
+		// Header-only TCommands are per-DLL: ChooserEditor::Register() does not populate
+		// this module's Instance. Register a local copy before any ::Get() (toolbar/menus).
+		FChooserTableEditorCommands::Register();
+
 		UE::StructChooserEditor::RegisterStructChooserWidgets();
-		// After ChooserEditor (and preferably ProxyTableEditor) widget registration.
-		UE::StructChooserEditor::RegisterObjectResultCrashGuards();
+		UE::StructChooserEditor::RegisterStructChooserEditorMenus();
+		UE::StructChooserEditor::RegisterStructChooserTableToolbar();
+		UE::StructChooserEditor::FStructChooserTableEditor::RegisterWidgets();
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout(
 			UStructChooserTable::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FStructChooserDetails::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout(
-			TEXT("ChooserRowDetails"),
-			FOnGetDetailCustomizationInstance::CreateStatic(&FStructChooserRowDetails::MakeInstance));
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UE::StructChooserEditor::UnregisterStructChooserEditorMenus();
+
+		if (FChooserTableEditorCommands::IsRegistered())
+		{
+			FChooserTableEditorCommands::Unregister();
+		}
+
 		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 		{
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 			PropertyModule.UnregisterCustomClassLayout(UStructChooserTable::StaticClass()->GetFName());
-			// Restore engine layout if ChooserEditor is still loaded
-			PropertyModule.UnregisterCustomClassLayout(TEXT("ChooserRowDetails"));
+			PropertyModule.UnregisterCustomClassLayout(TEXT("StructChooserRowDetails"));
+			PropertyModule.UnregisterCustomClassLayout(TEXT("StructChooserColumnDetails"));
 		}
 	}
 };

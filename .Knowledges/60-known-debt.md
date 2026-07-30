@@ -4,39 +4,34 @@
 > **何时阅读**：规划改造、排查诡异行为、评估「能不能动这块」时。
 > **相关源码**：全插件
 > **相关文档**：[90-refactor-log.md](90-refactor-log.md)、[01-architecture.md](01-architecture.md)
-> **最后更新**：2026-07-27（D1：单元格崩溃守卫）
+> **最后更新**：2026-07-30（D1 结案；D7：UE5.7 shim）
 
 ## 基线快照
 
 - **日期**：2026-07-26
-- **引擎**：UE 5.7.4（项目 `NextGame.uproject`）
+- **引擎**：UE 5.7.4（分支 `Dev_5.7`）；main 方案源自 UE5.8
 - **状态**：插件功能可用；下列条目来自实现审阅，非完整审计。
 
 ## 债务清单
 
-### D5 — 引擎 Chooser 创建对话框无法产出 UStructChooserTable（UE5.7）
+### D1 — Add Row 菜单无 per-table 钩子（已结案：自建编辑器）
 
-- **位置**：`FStructChooserInitializer`；引擎 `UChooserTableFactory`
-- **问题**：UE5.7 `FChooserInitializer` 无 `OverrideClass`；工厂固定 `NewObject<UChooserTable>`。
-- **缓解**：Initializer `Meta=(Hidden)`；创建入口仅 `UStructChooserTableFactory`。
-- **建议方向**：升级到带 OverrideClass 的引擎版本后再暴露 Initializer；或自建完整创建 UI（已有 Factory）。
-
-### D1 — Add Row / 单元格类型下拉仍混排（不改引擎；已部分缓解）
-
-- **位置**：转发打开 `UChooserTable` 编辑器；`SChooserCreateRowButton` / 单元格 `CreateWidget`
-- **问题**：不改 `ChooserEditor` 时无法过滤 Add Row / 单元格类型列表。
-- **缓解**：
-  - 行 Details Result：`FStructChooserRowDetails` 将 `BaseStruct` → `StructChooserBase`
-  - 误选：单元格守卫立刻改回 Struct 并画 Struct UI；`PostTransacted` / `PreSave` / `PostLoad` 同步兜底；`IsDataValid` 仍校验
-- **残留**：Add Row / 单元格下拉仍可能看到 Asset 等项（点选不崩，会被纠正）。
-- **建议方向（完整清菜单）**：自建 StructChooser 表编辑器。
+- **位置**：曾依赖引擎 `SChooserCreateRowButton::MakeCreateResultMenu`
+- **结案（2026-07-30）**：`UStructChooserTable` 改走 `FStructChooserTableEditor`；自有 Add Row 仅 Struct 三项；三行类型 `Meta=(Hidden)` 隔离官方。Dev_5.7 已从 main 移植并适配。
+- **残留**：自建编辑器与引擎在极少数辅助功能上可能仍有细微差异；升级引擎时需 diff 镜像源。`FChooserTableEditorCommands` 为头文件 TCommands，Dev_5.7 须在本模块 `StartupModule` 再 `Register()`（跨 DLL 静态实例不共享）。
 - **约束**：不改引擎 Chooser 源码。
+
+### D7 — UE5.7 shim 与引擎升级同步成本
+
+- **位置**：`Private/TableEditor/IChooserTableViewModel.h`、`IChooserTableView.h`、`UStructChooserEditorToolMenuContext`
+- **问题**：这些 API 在 UE5.8 ChooserEditor 为引擎提供；5.7 由本插件 shim。升到带官方接口的引擎时需去掉 shim、改回引擎头。
+- **建议方向**：升级引擎后对照 main / 引擎 Public，删除重复定义并改 include。
 
 ### D2 — 父类 ObjectResult 占位语义易误导（已缓解）
 
 - **位置**：`ApplyStructChooserDefaults`；Details 曾暴露 `ResultType` / `OutputObjectType`
 - **问题**：资产上曾显示 Result Type = Object Of Type；新手可能改回 Class/NoPrimary 破坏 UI。
-- **缓解**：`FStructChooserDetails` 隐藏 `ResultType` 与 `OutputObjectType`（2026-07-26）；运行时仍内部占位。
+- **缓解**：`FStructChooserDetails` 隐藏 `ResultType` 与 `OutputObjectType`（须带 `UChooserSignature::StaticClass()`，否则 Table Settings 仍会显示）。
 - **残留**：属性仍存在于序列化数据中，仅 UI 隐藏。
 
 ### D3 — K2 节点 Context 能力弱于引擎 EvaluateChooser2
