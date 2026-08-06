@@ -115,6 +115,11 @@ static TSharedRef<SWidget> CreateStructValueChooserWidget(bool bReadOnly, UObjec
 				SNew(STextBlock)
 				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Visibility_Lambda([StructChooser]()
+				{
+					// Named rows: show only the name. Type is a fallback when Name is empty.
+					return StructChooser->Name.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+				})
 				.Text_Lambda([StructChooser]()
 				{
 					if (StructChooser->Value.IsValid() && StructChooser->Value.GetScriptStruct())
@@ -185,7 +190,8 @@ static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObje
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth()
 			[
-				SNew(SImage).Image(GetChooserEditorBrush(TEXT("ChooserEditor.NestedChooserIcon")))
+				// Match UChooser NestedChooser widget: ChooserEditorStyle has no NestedChooserIcon.
+				SNew(SImage).Image(GetChooserEditorBrush(TEXT("ChooserEditor.ChooserTableIconSmall")))
 			]
 			+ SHorizontalBox::Slot().FillWidth(1.0).Padding(2)
 			[
