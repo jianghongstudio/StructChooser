@@ -133,6 +133,21 @@ static TSharedRef<SWidget> CreateStructValueChooserWidget(bool bReadOnly, UObjec
 		];
 }
 
+static bool MatchesExpectedOutputStructType(UStructChooserTable* Other, UScriptStruct* ExpectedStructType)
+{
+	if (!Other)
+	{
+		return false;
+	}
+	if (!ExpectedStructType)
+	{
+		return true;
+	}
+	UStructChooserTable* Root = Cast<UStructChooserTable>(Other->GetRootChooser());
+	const UScriptStruct* OtherType = Root ? Root->OutputStructType.Get() : Other->OutputStructType.Get();
+	return OtherType == ExpectedStructType;
+}
+
 static TSharedRef<SWidget> CreateEvaluateStructChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
 {
 	FEvaluateStructChooser* EvaluateChooser = static_cast<FEvaluateStructChooser*>(Value);
@@ -144,38 +159,136 @@ static TSharedRef<SWidget> CreateEvaluateStructChooserWidget(bool bReadOnly, UOb
 		ExpectedStructType = Root ? Root->OutputStructType.Get() : Owner->OutputStructType.Get();
 	}
 
-	return SNew(SObjectPropertyEntryBox)
+	// Asset picker covers external tables; nested subobjects are not in the asset registry,
+	// so also expose Select Existing (same-asset NestedObjects) — needed for Fallback → child table.
+	TSharedRef<SComboButton> NestedPickButton = SNew(SComboButton)
 		.IsEnabled(!bReadOnly)
-		.AllowedClass(UStructChooserTable::StaticClass())
-		.ObjectPath_Lambda([EvaluateChooser]()
+		.ContentPadding(0)
+		.ToolTipText(LOCTEXT("EvaluatePickNestedTip", "Pick an embedded StructChooserTable from this asset (including Fallback → nested child)"))
+		.ButtonContent()
+		[
+			SNew(SImage).Image(GetChooserEditorBrush(TEXT("ChooserEditor.ChooserTableIconSmall")))
+		];
+
+	NestedPickButton->SetOnGetMenuContent(FOnGetContent::CreateLambda(
+		[NestedPickButton, EvaluateChooser, TransactionObject, ExpectedStructType, ValueChanged]()
 		{
-			return EvaluateChooser->Chooser ? EvaluateChooser->Chooser.GetPath() : FString();
-		})
-		.OnShouldFilterAsset_Lambda([ExpectedStructType](const FAssetData& InAssetData)
-		{
-			if (!InAssetData.IsInstanceOf(UStructChooserTable::StaticClass()))
+			FMenuBuilder MenuBuilder(true, nullptr);
+			MenuBuilder.BeginSection(NAME_None, LOCTEXT("EvaluateNestedSection", "Embedded Struct Chooser"));
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("None", "None"),
+				LOCTEXT("ClearEvaluate", "Clear Evaluate reference"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([NestedPickButton, EvaluateChooser, TransactionObject, ValueChanged]()
+				{
+					const FScopedTransaction Transaction(LOCTEXT("ClearEvaluateStructChooser", "Clear Evaluate Struct Chooser"));
+					TransactionObject->Modify(true);
+					NestedPickButton->SetIsOpen(false);
+					EvaluateChooser->Chooser = nullptr;
+					ValueChanged.ExecuteIfBound();
+				})));
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("SelectExisting", "Select Existing"),
+				LOCTEXT("SelectExistingEvaluateTip", "Select an existing embedded StructChooserTable from this asset"),
+				FNewMenuDelegate::CreateLambda([NestedPickButton, EvaluateChooser, TransactionObject, ExpectedStructType, ValueChanged](FMenuBuilder& SubMenuBuilder)
+				{
+					SubMenuBuilder.BeginSection("Existing", LOCTEXT("Existing", "Existing"));
+					if (UChooserTable* OuterChooser = Cast<UChooserTable>(TransactionObject))
+					{
+						UChooserTable* RootTable = OuterChooser->GetRootChooser();
+						for (UObject* Object : RootTable->NestedObjects)
+						{
+							if (UStructChooserTable* Nested = Cast<UStructChooserTable>(Object))
+							{
+								if (Nested == RootTable || !MatchesExpectedOutputStructType(Nested, ExpectedStructType))
+								{
+									continue;
+								}
+								SubMenuBuilder.AddMenuEntry(
+									FText::FromString(Nested->GetName()),
+									LOCTEXT("AddExistingEvaluateTip", "Evaluate this embedded StructChooserTable"),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateLambda([Nested, NestedPickButton, EvaluateChooser, TransactionObject, ValueChanged]()
+									{
+										const FScopedTransaction Transaction(LOCTEXT("SetEvaluateNestedStructChooser", "Set Evaluate Struct Chooser"));
+										TransactionObject->Modify(true);
+										NestedPickButton->SetIsOpen(false);
+										EvaluateChooser->Chooser = Nested;
+										ValueChanged.ExecuteIfBound();
+									})));
+							}
+						}
+					}
+					SubMenuBuilder.EndSection();
+				}));
+
+			MenuBuilder.EndSection();
+			return MenuBuilder.MakeWidget();
+		}));
+
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().FillWidth(1.0f)
+		[
+			SNew(SObjectPropertyEntryBox)
+			.IsEnabled(!bReadOnly)
+			.AllowedClass(UStructChooserTable::StaticClass())
+			.ObjectPath_Lambda([EvaluateChooser]()
 			{
+				return EvaluateChooser->Chooser ? EvaluateChooser->Chooser.GetPath() : FString();
+			})
+			.OnShouldFilterAsset_Lambda([ExpectedStructType](const FAssetData& InAssetData)
+			{
+				if (!InAssetData.IsInstanceOf(UStructChooserTable::StaticClass()))
+				{
+					return true;
+				}
+				if (UStructChooserTable* Other = Cast<UStructChooserTable>(InAssetData.GetAsset()))
+				{
+					return !MatchesExpectedOutputStructType(Other, ExpectedStructType);
+				}
 				return true;
-			}
-			if (!ExpectedStructType)
+			})
+			.OnObjectChanged_Lambda([TransactionObject, EvaluateChooser, ValueChanged](const FAssetData& AssetData)
 			{
-				return false;
-			}
-			if (UStructChooserTable* Other = Cast<UStructChooserTable>(InAssetData.GetAsset()))
+				const FScopedTransaction Transaction(LOCTEXT("EditEvaluateStructChooser", "Edit Evaluate Struct Chooser"));
+				TransactionObject->Modify(true);
+				EvaluateChooser->Chooser = Cast<UStructChooserTable>(AssetData.GetAsset());
+				ValueChanged.ExecuteIfBound();
+			})
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 0.f, 0.f)
+		[
+			NestedPickButton
+		]
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 0.f, 0.f)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("Edit", "Edit"))
+			.IsEnabled_Lambda([EvaluateChooser]()
 			{
-				UStructChooserTable* Root = Cast<UStructChooserTable>(Other->GetRootChooser());
-				const UScriptStruct* OtherType = Root ? Root->OutputStructType.Get() : Other->OutputStructType.Get();
-				return OtherType != ExpectedStructType;
-			}
-			return true;
-		})
-		.OnObjectChanged_Lambda([TransactionObject, EvaluateChooser, ValueChanged](const FAssetData& AssetData)
-		{
-			const FScopedTransaction Transaction(LOCTEXT("EditEvaluateStructChooser", "Edit Evaluate Struct Chooser"));
-			TransactionObject->Modify(true);
-			EvaluateChooser->Chooser = Cast<UStructChooserTable>(AssetData.GetAsset());
-			ValueChanged.ExecuteIfBound();
-		});
+				return EvaluateChooser->Chooser != nullptr;
+			})
+			.OnClicked_Lambda([EvaluateChooser, TransactionObject]()
+			{
+				if (EvaluateChooser->Chooser)
+				{
+					if (UObject* RootChooser = TransactionObject->GetPackage()->FindAssetInPackage())
+					{
+						if (IAssetEditorInstance* Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(RootChooser, false))
+						{
+							Editor->FocusWindow(EvaluateChooser->Chooser);
+						}
+						else if (EvaluateChooser->Chooser->IsAsset())
+						{
+							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(EvaluateChooser->Chooser);
+						}
+					}
+				}
+				return FReply::Handled();
+			})
+		];
 }
 
 static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)

@@ -28,7 +28,7 @@
 | 类型 | Meta Category | 职责 |
 |------|---------------|------|
 | `FStructValueChooser` | StructChooser | `Name`（显示）+ `Value`（`FInstancedStruct` 返回值） |
-| `FEvaluateStructChooser` | StructChooser | `Chooser` → 外部 `UStructChooserTable` 资产 |
+| `FEvaluateStructChooser` | StructChooser | `Chooser` → 外部资产 **或** 同资产嵌入子表（编辑器 Select Existing） |
 | `FNestedStructChooser` | StructChooser | `Chooser` → 同包内嵌 `UStructChooserTable` |
 
 `FStructChooserBase` 自身 `Meta=(Hidden)`，不出现在菜单。`ChooseObject` 默认返回 `nullptr`，避免被引擎 Object 评估误用成假资产。

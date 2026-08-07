@@ -40,7 +40,7 @@
 | 行类型 | 控件要点 |
 |--------|----------|
 | `FStructValueChooser` | 左：`SEditableTextBox`（`Name`）；右：弱化结构体类型名 |
-| `FEvaluateStructChooser` | `SObjectPropertyEntryBox`，仅 `UStructChooserTable` |
+| `FEvaluateStructChooser` | 外部资产 `SObjectPropertyEntryBox` + **Select Existing**（同资产 `NestedObjects`，供 Fallback→子表）+ Edit |
 | `FNestedStructChooser` | 嵌入表；Edit 优先 `FocusWindow`（5.7 无引擎 widget interface 注入） |
 
 **禁止**覆盖引擎 Nested/Asset/Evaluate Object 结果 creator。

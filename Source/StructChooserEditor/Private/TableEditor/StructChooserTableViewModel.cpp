@@ -961,11 +961,11 @@ UChooserTable* DuplicateNestedChooser(UChooserTable* Chooser, UChooserTable* New
 
 	for (FInstancedStruct& ResultData : NewTable->ResultsStructs)
 	{
-		if (FNestedChooser* NestedChooser = ResultData.GetMutablePtr<FNestedChooser>())
+		if (FNestedStructChooser* NestedChooser = ResultData.GetMutablePtr<FNestedStructChooser>())
 		{
 			if (NestedChooser->Chooser)
 			{
-				NestedChooser->Chooser = DuplicateNestedChooser(NestedChooser->Chooser, NewTable);
+				NestedChooser->Chooser = Cast<UStructChooserTable>(DuplicateNestedChooser(NestedChooser->Chooser, NewTable));
 			}
 		}
 	}
@@ -993,10 +993,10 @@ UChooserTable* FStructChooserTableViewModel::CopyRowsInternal(TConstArrayView<in
 	{
 		RowIndicesCopy.RemoveAt(0);
 		CopyData->FallbackResult = Chooser->FallbackResult;
-		if (FNestedChooser* CopiedNestedChooser = CopyData->FallbackResult.GetMutablePtr<FNestedChooser>())
+		if (FNestedStructChooser* CopiedNestedChooser = CopyData->FallbackResult.GetMutablePtr<FNestedStructChooser>())
 		{
 			// if the fallback result was a nested chooser, duplicate it
-			CopiedNestedChooser->Chooser = DuplicateNestedChooser(CopiedNestedChooser->Chooser, CopyData);
+			CopiedNestedChooser->Chooser = Cast<UStructChooserTable>(DuplicateNestedChooser(CopiedNestedChooser->Chooser, CopyData));
 		}
 	}
 
@@ -1008,12 +1008,12 @@ UChooserTable* FStructChooserTableViewModel::CopyRowsInternal(TConstArrayView<in
 	for (int32 RowIndex = 0; RowIndex < RowIndicesCopy.Num(); RowIndex++)
 	{
 		CopyData->ResultsStructs[RowIndex] = Chooser->ResultsStructs[RowIndicesCopy[RowIndex]];
-		if (FNestedChooser* CopiedNestedChooser = CopyData->ResultsStructs[RowIndex].GetMutablePtr<FNestedChooser>())
+		if (FNestedStructChooser* CopiedNestedChooser = CopyData->ResultsStructs[RowIndex].GetMutablePtr<FNestedStructChooser>())
 		{
 			if (CopiedNestedChooser->Chooser)
 			{
 				// if the result for this row was a nested chooser (with a valid chooser assigned), duplicate it
-				CopiedNestedChooser->Chooser = DuplicateNestedChooser(CopiedNestedChooser->Chooser, CopyData);
+				CopiedNestedChooser->Chooser = Cast<UStructChooserTable>(DuplicateNestedChooser(CopiedNestedChooser->Chooser, CopyData));
 			}
 		}
 
@@ -1253,10 +1253,10 @@ void FStructChooserTableViewModel::PasteInternal(UChooserTable* PastedContent, i
 		{
 			// paste fallback result if copy data has one
 			Chooser->FallbackResult = PastedContent->FallbackResult;
-			if (FNestedChooser* NestedChooser = Chooser->FallbackResult.GetMutablePtr<FNestedChooser>())
+			if (FNestedStructChooser* NestedChooser = Chooser->FallbackResult.GetMutablePtr<FNestedStructChooser>())
 			{
 				// duplicate the nested chooser if the fallback result refers to a nested chooser
-				NestedChooser->Chooser = DuplicateNestedChooser(NestedChooser->Chooser, Chooser);
+				NestedChooser->Chooser = Cast<UStructChooserTable>(DuplicateNestedChooser(NestedChooser->Chooser, Chooser));
 			}
 		}
 		
@@ -1265,9 +1265,9 @@ void FStructChooserTableViewModel::PasteInternal(UChooserTable* PastedContent, i
 			// if there were nested choosers in the copy buffer we have to remap or paste them here
 			for (int32 ResultIndex = InsertIndex; ResultIndex < PastedContent->ResultsStructs.Num() + InsertIndex; ResultIndex++)
 			{
-				if (FNestedChooser* NestedChooser = Chooser->ResultsStructs[ResultIndex].GetMutablePtr<FNestedChooser>())
+				if (FNestedStructChooser* NestedChooser = Chooser->ResultsStructs[ResultIndex].GetMutablePtr<FNestedStructChooser>())
 				{
-					NestedChooser->Chooser = DuplicateNestedChooser(NestedChooser->Chooser, Chooser);
+					NestedChooser->Chooser = Cast<UStructChooserTable>(DuplicateNestedChooser(NestedChooser->Chooser, Chooser));
 				}
 			}
 		}
