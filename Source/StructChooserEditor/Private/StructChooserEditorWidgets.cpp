@@ -1,4 +1,4 @@
-﻿#include "StructChooserEditorWidgets.h"
+#include "StructChooserEditorWidgets.h"
 #include "StructChooserTypes.h"
 #include "StructChooserTable.h"
 #include "StructChooserStructFilter.h"
@@ -148,6 +148,52 @@ static bool MatchesExpectedOutputStructType(UStructChooserTable* Other, UScriptS
 	return OtherType == ExpectedStructType;
 }
 
+static bool IsChooserWithinRoot(const UChooserTable* Chooser, const UChooserTable* RootChooser)
+{
+	for (const UChooserTable* Current = Chooser; Current; Current = Cast<UChooserTable>(Current->GetOuter()))
+	{
+		if (Current == RootChooser)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+static void OpenStructChooserForEditing(UObject* TransactionObject, UChooserTable* ReferencedChooser)
+{
+	if (!GEditor || !TransactionObject || !ReferencedChooser)
+	{
+		return;
+	}
+
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	if (!AssetEditorSubsystem)
+	{
+		return;
+	}
+
+	UChooserTable* OwnerChooser = Cast<UChooserTable>(TransactionObject);
+	UChooserTable* OwnerRoot = OwnerChooser ? OwnerChooser->GetRootChooser() : nullptr;
+	if (OwnerRoot && IsChooserWithinRoot(ReferencedChooser, OwnerRoot))
+	{
+		if (IAssetEditorInstance* Editor = AssetEditorSubsystem->FindEditorForAsset(OwnerRoot, false))
+		{
+			Editor->FocusWindow(ReferencedChooser);
+			return;
+		}
+	}
+
+	UChooserTable* ReferencedRoot = ReferencedChooser->GetRootChooser();
+	UObject* AssetToOpen = ReferencedRoot && ReferencedRoot->IsAsset()
+		? ReferencedRoot
+		: ReferencedChooser->GetOutermost()->FindAssetInPackage();
+	if (AssetToOpen)
+	{
+		AssetEditorSubsystem->OpenEditorForAsset(AssetToOpen);
+	}
+}
+
 static TSharedRef<SWidget> CreateEvaluateStructChooserWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass, FChooserWidgetValueChanged ValueChanged)
 {
 	FEvaluateStructChooser* EvaluateChooser = static_cast<FEvaluateStructChooser*>(Value);
@@ -274,17 +320,7 @@ static TSharedRef<SWidget> CreateEvaluateStructChooserWidget(bool bReadOnly, UOb
 			{
 				if (EvaluateChooser->Chooser)
 				{
-					if (UObject* RootChooser = TransactionObject->GetPackage()->FindAssetInPackage())
-					{
-						if (IAssetEditorInstance* Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(RootChooser, false))
-						{
-							Editor->FocusWindow(EvaluateChooser->Chooser);
-						}
-						else if (EvaluateChooser->Chooser->IsAsset())
-						{
-							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(EvaluateChooser->Chooser);
-						}
-					}
+					OpenStructChooserForEditing(TransactionObject, EvaluateChooser->Chooser);
 				}
 				return FReply::Handled();
 			})
@@ -456,13 +492,7 @@ static TSharedRef<SWidget> CreateNestedStructChooserWidget(bool bReadOnly, UObje
 			{
 				if (NestedChooser->Chooser)
 				{
-					if (UObject* RootChooser = TransactionObject->GetPackage()->FindAssetInPackage())
-					{
-						if (IAssetEditorInstance* Editor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(RootChooser, false))
-						{
-							Editor->FocusWindow(NestedChooser->Chooser);
-						}
-					}
+					OpenStructChooserForEditing(TransactionObject, NestedChooser->Chooser);
 				}
 				return FReply::Handled();
 			})

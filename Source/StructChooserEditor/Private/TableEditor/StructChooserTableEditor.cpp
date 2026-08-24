@@ -547,20 +547,28 @@ void FStructChooserTableEditor::NavigateForward()
 
 void FStructChooserTableEditor::SetChooserTableToEdit(UChooserTable* Chooser, bool bApplyToHistory)
 {
-	if (Chooser == ViewModel->GetChooser())
+	if (!Chooser || !ViewModel.IsValid() || Chooser == ViewModel->GetChooser())
 	{
 		return;
 	}
-	
-	BreadcrumbTrail->ClearCrumbs();
 
 	TArray<UChooserTable*> OuterList;
-	OuterList.Push(Chooser);
-	
-	while(OuterList.Last() != ViewModel->GetRootChooser())
+	const UChooserTable* RootChooser = ViewModel->GetRootChooser();
+	for (UChooserTable* Current = Chooser; Current; Current = Cast<UChooserTable>(Current->GetOuter()))
 	{
-		OuterList.Push(Cast<UChooserTable>(OuterList.Last()->GetOuter()));
+		OuterList.Push(Current);
+		if (Current == RootChooser)
+		{
+			break;
+		}
 	}
+
+	if (OuterList.IsEmpty() || OuterList.Last() != RootChooser)
+	{
+		return;
+	}
+
+	BreadcrumbTrail->ClearCrumbs();
 
 	while(!OuterList.IsEmpty())
 	{
